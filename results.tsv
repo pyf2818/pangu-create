@@ -1,0 +1,6 @@
+timestamp	commit	skill	old_score	new_score	status	dimension	note	eval_mode
+2026-10-04T11:30	-	(super-create)	-	-	worse	观感维度/生成性资产	用户判光刻机demo「粗糙」→对比html-to-video(进化后)与threejs-web(初版)：四大根因=①F1.0只搜同类skill不搜美学标杆②产出型skill无配方库强制③观感验证被简化丢惊喜线④活页面动态交互无脚本化验证→修复：forge.md双轨侦察/配方库必备/两档观感验证/交互验证；threejs-web补effects.md配方库	paired_worse_user
+2026-10-04T12:20	-	(super-create)	-	-	update	第一阶段/进化契约	用户指令：强调必须走上进化+第一阶段=扩充提示词/挖掘需求/完善内容/再侦察学习→重构Phase 0.5为「第一阶段：理解与定义」（七要素简报+隐性五问+MVP/增强项），修历史编号bug；evolve.md新增进化契约（交付即第0代，worse强制进化，两次worse升级重写）	user_directive
+2026-10-04T13:00	-	(super-create)	-	-	update	思维工具层	用户指令：融入第一性原理/钢人/对抗性思维→forge.md思维工具表+F1.0第一性回问+F2.0本质约束+F2.2钢人失效条件+F4红队轮+F5·E2钢人反对+方向卡钢人反对；SKILL.md F4表加红队轮；testing.md红队协议	user_directive
+2026-10-04T16:40	-	(super-create)	-	-	worse	检查点语义	用户抓包：knowledge-cards锻造全程4个CHECKPOINT零交互。根因=「不阻塞交付」逃逸口过大吞掉闸门+无运行模式区分+红队轮未跑（门槛放过）→修复：SKILL.md新增「检查点语义」（交互模式=阻塞闸门+2-4个具体确认问题；无人值守才允许默认推进+显著声明+逐条记档；跳过检查点=硬性失败）	paired_worse_user
+2026-10-04T17:50	-	(super-create)	-	-	worse	意图显影	用户给参照图证明要的是「节点-连线架构图」而非竖排卡片流——L1显影时未主动索要参照物，导致整个形态做错→修复：需求挖掘第一步=索要参照物（一图胜十问），意图档案归档		paired_worse_user
