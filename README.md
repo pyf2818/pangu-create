@@ -12,7 +12,7 @@
 [![version](https://img.shields.io/badge/version-1.0.0-C8955A?style=flat-square)](https://github.com/pyf2818/pangu-create/releases)
 [![license](https://img.shields.io/badge/license-MIT-3B82F6?style=flat-square)](LICENSE)
 [![python](https://img.shields.io/badge/python-3.9%2B-3776AB?style=flat-square)](scripts)
-[![Agent Skill](https://img.shields.io/badge/Agent%20Skill-compatible-8B5CF6?style=flat-square)](#安装)
+[![Agent Skill](https://img.shields.io/badge/Agent%20Skill-compatible-8B5CF6?style=flat-square)](#快速开始)
 [![static check](https://img.shields.io/badge/static%20check-11%2F11-22C55E?style=flat-square)](#脚本)
 
 [快速开始](#快速开始) · [怎么用](#怎么用) · [质量体系](#质量体系) · [进化循环](#进化循环) · [FAQ](#faq) · [已知局限](#已知局限)
