@@ -191,9 +191,18 @@ def main() -> None:
         print(__doc__)
         sys.exit(2)
     md_path = Path(sys.argv[1])
+    if md_path.is_dir():
+        # 实测坑（csvviz-forge）：传目录会一路走到 read_text 抛 PermissionError；
+        # 目录输入自动定位其中的 SKILL.md，找不到则干净报错退出 2（用法错误，非产品缺陷）
+        candidate = md_path / "SKILL.md"
+        if candidate.exists():
+            md_path = candidate
+        else:
+            print(f"❌ {md_path} 是目录且其中没有 SKILL.md——请传入 SKILL.md 文件路径或包含它的目录")
+            sys.exit(2)
     if not md_path.exists():
         print(f"❌ 文件不存在: {md_path}")
-        sys.exit(1)
+        sys.exit(2)
 
     content = md_path.read_text(encoding="utf-8")
     fm, body = split_frontmatter(content)

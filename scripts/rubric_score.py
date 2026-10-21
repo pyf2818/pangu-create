@@ -234,7 +234,8 @@ def score_dim5_specificity(body: str):
 
     reasons = []
     reasons.append(f"软化措辞 {soft_count} 处" + ("✗" if soft_count >= 3 else "✓"))
-    reasons.append(f"命令/脚本 {cmd_count} 个" + ("✓" if has_cmd else "✗"))
+    # 实测坑（csvviz-forge）：旧 note 只显示 fence 数，内联 --参数 达标时仍显示「0 个」误导排查
+    reasons.append(f"命令fence {cmd_count} 个/--参数 {arg_count} 处" + ("✓" if has_cmd else "✗"))
     reasons.append(f"示例/举例 {examples} 处")
     return score, "; ".join(reasons)
 
@@ -258,6 +259,13 @@ def score_dim6_resources(md_path: Path, body: str, fm: str | None):
         for m in re.findall(r"`((?:references|scripts|assets|templates)/[\w\-./]+)`", line):
             if m.endswith(KNOWN_EXT):
                 refs.add(m)
+
+    # 任何位置的路径提及都算引用（file map 树/代码围栏/内联代码）——
+    # 实测坑（csvviz-forge）：旧正则只认 md 链接+指令性 backtick，对代码围栏里的 file map 失明，
+    # 与 quality_check/verify_skill 的资源闸门互相矛盾
+    for m in re.findall(r"(?:references|scripts|assets|templates)/[\w\-./]+", text):
+        if m.endswith(KNOWN_EXT):
+            refs.add(m)
 
     if not refs:
         return 8, "无本地资源引用（单文件 skill），降级扣分"

@@ -9,7 +9,7 @@
 
 *A meta-skill that forges any domain into a verifiable, evolvable Agent Skill.*
 
-[![version](https://img.shields.io/badge/version-1.0.0-C8955A?style=flat-square)](https://github.com/pyf2818/pangu-create/releases)
+[![version](https://img.shields.io/badge/version-1.1.0-C8955A?style=flat-square)](https://github.com/pyf2818/pangu-create/releases)
 [![license](https://img.shields.io/badge/license-MIT-3B82F6?style=flat-square)](LICENSE)
 [![python](https://img.shields.io/badge/python-3.9%2B-3776AB?style=flat-square)](scripts)
 [![Agent Skill](https://img.shields.io/badge/Agent%20Skill-compatible-8B5CF6?style=flat-square)](#快速开始)
@@ -101,11 +101,15 @@ flowchart LR
     I --> J[交付 · 第 0 代]
     J -. 真实使用反馈 .-> K[进化管线 E0-E4]
     K --> F
+    J & K -. E5 新陈代谢 .-> P[盘古自身：闸门补强 / craft-atlas 沉淀 / 规则淘汰]
+    P -. 下一代锻造 .-> C
 ```
 
 **锻造（Forge）**：从零创建。第一阶段先想清楚（意图显影 → 七要素简报 → 隐性五问 → MVP/增强项），再侦察学习，沿 F1-F5 往下走。
 
 **进化（Evolve）**：把已有 skill 磨强。E0 建分支与账本 → E0.5 测试题 → E1 基线 → E2 单维改动 + 3 judge paired 多数决 → E3 报告 → E4 代表作回流。
+
+**新陈代谢（E5）**：盘古自身的进化。模型自评 / 机器信号 / 用户反馈三源触发，四问——哪步最绕、哪个坑没拦住、哪个手法值得沉淀进 craft-atlas、哪条规则该淘汰（动态判断，该删才删，删留都记判据）。像生物：同化 + 排异，反馈不只来自用户——模型必须自己产生反馈。
 
 **出生即进化**：锻造出的 skill 在交付前必须完整走一轮进化精炼，未经实战检验的 skill 不许出厂。
 
@@ -171,6 +175,7 @@ my-skill/
 ├── README.md                     # 人类入口：3 步上手 + 示例 + 同类对比 + 局限
 ├── references/
 │   ├── design-thesis.md           # 设计论点 + 竞争测试 + 8-12 条独有素材
+│   ├── promise-table.md           # 承诺→断言矩阵：承诺 / 断言 / 命令 / 证据 / 状态
 │   ├── kernel.md                 # 铁律层 / 模型层 / 品味层
 │   ├── art-direction.md          # 产出型：从顶级成品拆出的参数级标杆
 │   ├── parameter-cards.md        # 产出型：≥8 项可量化工艺参数
@@ -179,11 +184,12 @@ my-skill/
 ├── examples/                     # ≥3 件可打开 / 可运行的范例
 ├── assets/showcase/              # 1 件手写署名作品
 ├── scripts/                      # 确定性核心：verify / finalize / check
+├── tests/failure_injection.py    # 故障注入：断网 / 空数据 / 环境缺失，≥2 类
 ├── test-prompts.json             # happy_path / complex / failure 三类测试题
-└── results.tsv                   # 进化账本（9 列）
+└── results.tsv                   # 进化账本（10 列，含 evidence 证据列）
 ```
 
-交付前，`scripts/verify_skill.py <dir> --type output` 会检查：论点档案、范例数量、署名作品、一键验收脚本。任一缺失直接 `exit 1`，不许进入 F4/F5。
+交付前，`scripts/verify_skill.py <dir> --type output` 会检查：论点档案、范例数量、署名作品、一键验收脚本、承诺矩阵、故障注入、交付证据。任一缺失直接 `exit 1`，不许进入 F4/F5。
 
 ---
 
@@ -244,7 +250,7 @@ python scripts/verify_skill.py my-skill --type output
 | `scaffold.py` | 生成目标 skill 骨架 + 立项检查单 | `python scripts/scaffold.py my-skill --name my-skill` |
 | `quality_check.py` | 静态 11 项自检（frontmatter / 失败分支 / 检查点 / 软化措辞 / 自包含…） | `python scripts/quality_check.py my-skill/SKILL.md` |
 | `rubric_score.py` | 11 维 rubric 自动评分（维度 1-7/9-11） | `python scripts/rubric_score.py my-skill/SKILL.md` |
-| `verify_skill.py` | 产出型出厂闸门（论点 / 范例 / 署名作品 / 确定性核心） | `python scripts/verify_skill.py my-skill --type output` |
+| `verify_skill.py` | 产出型出厂闸门（论点 / 范例 / 署名作品 / 确定性核心 / 承诺矩阵 / 故障注入 / 交付证据） | `python scripts/verify_skill.py my-skill --type output` |
 | `analyze_evolution.py` | 进化趋势（worse 分布 / 高频维度 / 改进建议） | `python scripts/analyze_evolution.py my-skill/results.tsv` |
 
 `--json` 可用于 CI 或自动化流水线。
@@ -276,18 +282,20 @@ python scripts/analyze_evolution.py my-skill/results.tsv
 
 ```
 pangu-create/
-├── SKILL.md                    # 主编排：入口分流、双管线、检查点、12 条铁律、23 条反模式
+├── SKILL.md                    # 主编排：入口分流、双管线、检查点、15 条铁律、28 条反模式
 ├── README.md                   # 你正在读的文件
 ├── assets/banner.svg           # 视觉标识
 ├── references/
 │   ├── forge.md                # 锻造管线详解（调研 / 内核提炼 / 构建 / 出厂测试 / 精炼）
-│   ├── evolve.md               # 进化管线详解（进化契约 / paired 协议 / results.tsv 格式）
-│   ├── rubric.md               # 11 维评分标准 + 运行时中立门禁
+│   ├── executable-checklist.md # 承诺→断言矩阵 + 12 项可执行出厂预检 + 故障注入
+│   ├── evolve.md               # 进化管线详解（进化契约 / paired 协议 / results.tsv 格式 / E5 新陈代谢）
+│   ├── craft-atlas.md          # 领域工艺图谱（各领域 North Star 参照物 + 参数基准，各自顶尖的积累）
+│   ├── rubric.md               # 11 维评分标准 + 运行时中立门禁 + 可执行交付闸门
 │   ├── playbooks.md            # 领域手法库（预组合 + 产出形态 × 知识类型两轴）
 │   ├── quality-dimensions.md   # 八维质量模型与各阶段落地动作
 │   ├── output-quality.md       # 产出质量三关 + 变体与迭代纪律
 │   ├── top-tier-patterns.md    # 四个头部 skill 拆解 + 六条可迁移机制
-│   ├── testing.md              # 测试方法论（基线对照 / 独立评审 / paired / 压力测试）
+│   ├── testing.md              # 测试方法论（基线对照 / 独立评审 / paired / 阈值余量 / dogfood）
 │   ├── templates.md            # 产物模板库
 │   └── failure-modes.md        # 失败模式与降级表
 ├── scripts/                    # 5 个零依赖 Python 工具

@@ -9,8 +9,8 @@
     python3 scaffold.py ./.agents/skills/excel-valuation --name excel-valuation
 
 行为:
-    1. 创建目录结构（SKILL.md 骨架 / test-prompts.json / references/research/ / sources/ / scripts/ / examples/ / assets/showcase/）
-    2. 写入 test-prompts.json 空模板（提醒: 测试题先行，基线先跑）与 references/design-thesis.md 论点档案空模板
+    1. 创建目录结构（SKILL.md 骨架 / references/ / tests/ / scripts/ / examples/ / assets/showcase/）
+    2. 写入 test-prompts.json 空模板（提醒: 测试题先行，基线先跑）、references/design-thesis.md 论点档案、references/promise-table.md 承诺矩阵、tests/failure_injection.py 注入骨架
     3. 已存在时默认拒绝覆盖（--force 覆盖已存在的骨架文件，但绝不删除用户文件）
 
 自包含原则: 所有调研文件都必须生成在目标 skill 目录内部。
@@ -31,6 +31,12 @@ except Exception:
 DESIGN_THESIS_STUB = """# 设计论点：TODO <North Star 名字>
 
 > 产出型 skill 必填；文本型 skill 可删。模板见 references/templates.md §七点六。
+>
+> **格式契约（verify_skill.py gate_thesis 按此解析，改结构=改闸门）**：
+> ① 三问必须是 `## 三问` 标题 + 两列表格恰好 3 行回答（表头/分隔行不算）；
+> ② 竞争测试必须是 `## 竞争测试` 段，结论句须含「不成立 / 不通过 / 只有本 / 说不出」字样；
+> ③ 独有素材必须是 `## 独有素材` 段 + 表格行首为 `| 数字 |`（8-12 行，下方 1 行是样例，复制补齐）；
+> ④ 全文出现 TODO = 闸门必拦。
 
 ## 一句话论点
 > TODO: 非显然的问题 + 默认做法为什么失败 + 我们的解法（≤100 字）
@@ -44,8 +50,9 @@ DESIGN_THESIS_STUB = """# 设计论点：TODO <North Star 名字>
 
 ## 竞争测试
 - 最近的同类 skill / 通用 AI：TODO
+- 现场可复核证据（实测/参数对照，档案背书不算）：TODO
 - 把对方代入论点句是否仍成立：TODO（是 = 不通过）
-- 结论：TODO
+- 结论：TODO（必须写明「同类代入后不成立/说不出」）
 
 ## 独有素材（8-12 条，只有这个主体才有）
 | # | 素材 | 换一个同类主体还成立吗？ |
@@ -57,6 +64,77 @@ DESIGN_THESIS_STUB = """# 设计论点：TODO <North Star 名字>
 - 它如何体现论点（3 条）：TODO
 - 与默认模板的 3 处实质差异：TODO
 """
+
+PROMISE_TABLE_STUB = """# 承诺→断言矩阵
+
+> F2 收尾必填（产出型与工具型适用）。规则见 pangu-create/references/executable-checklist.md §1。
+>
+> **格式契约（verify_skill.py gate_promise 按此解析）**：
+> ① 每行 ≥4 列，第 4 列必须是证据（非空/非 -/非 TODO：日志路径、截图文件名或实测数值）；
+> ② 命令列用反引号包命令，且含 python/node/npm/npx/bash/sh/curl/playwright/pytest/verify/finalize 关键词之一；
+> ③ 全表禁软化词（视情况/视具体/大致/大概/尽量/随便/看情况）；
+> ④ 行数 ≥3；做不到就删承诺，不许留空话。
+> 每一行 = 一句对用户的承诺 + 一条能跑的命令 + 一份能指认的证据。
+
+| 承诺（用户视角原话） | 可执行断言 | 命令 | 证据 | 状态 |
+|---|---|---|---|---|
+| TODO: 「打开就能看」 | TODO: canvas 有像素、0 console error | `python3 scripts/verify.py <产物>` | TODO: logs/xxx.log 或截图 | ⬜ |
+| TODO: 「断网也能用」 | TODO: 8 秒内出现降级提示 | `python3 tests/failure_injection.py --offline` | TODO: 降级截图 | ⬜ |
+| TODO: 「性能达标」 | TODO: headless ≥30 FPS | `python3 scripts/verify.py --headless <产物>` | TODO: 实测数值 | ⬜ |
+"""
+
+FAILURE_INJECTION_SKELETON = '''#!/usr/bin/env python3
+"""
+故障注入：验证异常路径不是「代码看起来会处理」，而是真的会处理。
+
+F3.6 必过闸门（至少覆盖两类注入）。按产物类型改写下面的 run_case。
+退出码: 0 全部符合预期 / 1 有场景未达预期（产品缺陷）/ 2 环境不满足（工具自伤，不算产品缺陷）
+"""
+
+import argparse
+import sys
+
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+except Exception:
+    pass
+
+
+def run_case(name, expect, fn):
+    try:
+        got = fn()
+    except Exception as e:
+        got = f"exception: {e}"
+    ok = (expect in str(got)) if isinstance(expect, str) else bool(got)
+    print(f"  {'PASS' if ok else 'FAIL'}  {name}: 期望「{expect}」实际「{got}」")
+    return ok
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--offline", action="store_true", help="模拟依赖不可达（拦 CDN / 断网）")
+    ap.add_argument("--empty", action="store_true", help="极端输入：空数据 / 0 条")
+    args = ap.parse_args()
+
+    cases = []
+    if args.offline:
+        # TODO: 用 route/abort 拦掉 CDN 域名，断言用户可见 DOM 里出现降级提示
+        cases.append(("依赖不可达 → 有降级提示", "降级提示", lambda: "TODO"))
+    if args.empty:
+        # TODO: 喂空数组 / 0 条数据，断言不崩、有兜底文案
+        cases.append(("空数据 → 兜底文案", "无数据", lambda: "TODO"))
+
+    if not cases:
+        print("未选择场景：用 --offline / --empty 指定（至少两类）")
+        return 2
+
+    ok = all(run_case(*c) for c in cases)
+    return 0 if ok else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+'''
 
 RESEARCH_FILES = [
     ("00-positioning.md", "定位（一句话定位 + 依据，F1.0 侦察后可回写差异化）"),
@@ -169,6 +247,7 @@ def main() -> None:
     (root / "references" / "research").mkdir(parents=True, exist_ok=True)
     (root / "references" / "sources").mkdir(parents=True, exist_ok=True)
     (root / "scripts").mkdir(parents=True, exist_ok=True)
+    (root / "tests").mkdir(parents=True, exist_ok=True)
     (root / "examples").mkdir(parents=True, exist_ok=True)
     (root / "assets" / "showcase").mkdir(parents=True, exist_ok=True)
 
@@ -180,6 +259,16 @@ def main() -> None:
         args.force,
     ))
     print(write_if_absent(
+        root / "references" / "promise-table.md",
+        PROMISE_TABLE_STUB,
+        args.force,
+    ))
+    print(write_if_absent(
+        root / "tests" / "failure_injection.py",
+        FAILURE_INJECTION_SKELETON,
+        args.force,
+    ))
+    print(write_if_absent(
         root / "test-prompts.json",
         json.dumps(TEST_PROMPTS_TEMPLATE, ensure_ascii=False, indent=2) + "\n",
         args.force,
@@ -188,7 +277,7 @@ def main() -> None:
         header = f"# {desc}\n\n调研时间：\n模式：\n\n## 关键发现\n\n## 失败模式 → 铁律候选\n\n## 矛盾与待验证\n\n## 信息不足\n"
         print(write_if_absent(root / "references" / "research" / fname, header, args.force))
 
-    tsv_header = "timestamp\tcommit\tskill\told_score\tnew_score\tstatus\tdimension\tnote\teval_mode\n"
+    tsv_header = "timestamp\tcommit\tskill\told_score\tnew_score\tstatus\tdimension\tnote\teval_mode\tevidence\n"
     print(write_if_absent(root / "results.tsv", tsv_header, args.force))
 
     print()
@@ -197,7 +286,8 @@ def main() -> None:
     print("  [ ] 档位已向用户确认（快速/标准/精品）")
     print("  [ ] test-prompts.json 已填 3 道真实测试题（happy_path/complex/failure 各一）")
     print("  [ ] 基线已跑（不带 skill 回答测试题，存 research/baseline.md）")
-    print("  [ ] results.tsv 表头已就位；若尚未纳入 git，建议在目标目录 git init（进化棘轮需要）")
+    print("  [ ] 原句回放 + 排除清单已写入 references/research/00-intent.md")
+    print("  [ ] results.tsv 表头已就位（含 evidence 列）；若尚未纳入 git，建议在目标目录 git init（进化棘轮需要）")
     print("  [ ] 🔴 CHECKPOINT 已向用户展示立项摘要")
     print()
     print("⚠️  产出型必过闸门（F3 前）：")
@@ -205,6 +295,17 @@ def main() -> None:
     print("  [ ] 主体盘点 8-12 条「换同类主体就不成立」的素材")
     print("  [ ] examples/ ≥3 件可打开范例；assets/showcase/ 1 件手写署名作品")
     print("  [ ] scripts/ 核心变换脚本化 + 一键 verify/finalize")
+    print()
+    print("⚠️  可执行预检（F3.6，不过不进 F4）：")
+    print("  [ ] references/promise-table.md ≥3 行，每行有断言 + 命令 + 证据")
+    print("  [ ] tests/failure_injection.py 改写成真实注入（≥2 类：依赖不可达 / 极端输入 / 环境缺失 / 工具自伤）")
+    print("  [ ] 降级提示在用户可见 DOM（看门狗写在 module 之外）")
+    print("  [ ] 量化阈值留 1.5× 余量，或 3 次取中位数")
+    print("  [ ] python3 scripts/verify_skill.py <本目录> 全过")
+    print()
+    print("⚠️  交付后（E4/E5 回流）：")
+    print("  [ ] 领域工艺参数回填 pangu-create/references/craft-atlas.md（无节则按注册格式开新节）")
+    print("  [ ] 走 E5 四问（三源触发：模型自评/机器信号/用户反馈）：流程 / 闸门 / 沉淀 / 动态排异，记入 pangu-create/results.tsv")
     print()
     print("下一步: 读本 skill 目录下 references/forge.md 开始 F1 调研。")
 

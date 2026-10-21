@@ -103,3 +103,32 @@ grep -nE "(在 Claude Code|Claude Code skill|Claude Code 用户|Cursor only|Code
 
 - 命中 ≥1 个真红灯 → 强制把优化循环第一轮定为 P0「runtime drift 修复」，优先于其他维度
 - results.tsv 的 note 列记 `runtime_warn=N`（不新增列，保持向后兼容）
+
+---
+
+## 可执行交付闸门（gate 项，独立于 11 维评分）
+
+> 为什么独立：11 维量的是「写得对不对」，本闸门量的是「宣称的体验是否真的成立」。threejs-web 曾 11 维结构分全绿、`quality_check` 11/11，同时 02 范例只有 14 FPS、断网降级横幅永不出现——文档分不能替代运行时事实。三项任一不过 = 不许交付，与总分无关。
+
+| # | 闸门 | 判据 | 机器检查 |
+|---|------|------|---------|
+| G1 | **承诺→断言矩阵** | `references/promise-table.md` 存在，≥3 行；每行有「可执行断言 + 可复制命令 + 可指认证据」；无空命令行（「视情况」「大致」）；交付摘要贴最新执行结果 | `verify_skill.py` → `gate_promise` |
+| G2 | **故障注入** | 存在注入脚本（`tests/failure_injection.py`）或验收脚本的 `--expect-fail` / `expect_fail` 模式；覆盖 ≥2 类注入（依赖不可达 / 极端输入 / 环境缺失 / 工具自伤）；降级提示出现在用户可见 DOM，不只 console | `verify_skill.py` → `gate_failure_injection` |
+| G3 | **环境分流与阈值余量** | 验收工具退出码三态：0 通过 / 1 产品缺陷 / 2 环境故障；环境故障（网络抖动、端口被占、浏览器缺失）单独归类，不计入 worse；量化阈值满足实测 ≥ 阈值×1.5 或 3 次中位数达标 | 人工复核 + `results.tsv` 的 `evidence` 列 |
+
+**G1 绿灯写法**（反例/正例对照见 [executable-checklist.md](executable-checklist.md) §3）：
+
+```markdown
+| 承诺 | 可执行断言 | 命令 | 证据 | 状态 |
+|---|---|---|---|---|
+| 打开即可看 | canvas 有像素、0 console error | `python3 scripts/verify.py examples/01.html` | `logs/01.log` | ✅ 2026-10-21 |
+```
+
+**判定纪律**：
+
+- 有承诺句但无对应断言 → G1 不过（删承诺或补断言，二选一）
+- 只测正常路径、失败路径靠「代码看起来会处理」→ G2 不过
+- 闸门自己跑不起来（缺依赖、端口冲突）→ 记退出码 2，**先修闸门**，不许手写「已验证」
+- 把网络抖动当产品缺陷去「修」→ 违反 G3，回滚该轮改动
+
+**与 11 维的关系**：G1-G3 全过才允许进入 paired 评估；G 项不过时 11 维分数只作 triage，不得作为交付依据。

@@ -1,0 +1,20 @@
+[
+  {
+    "id": 1,
+    "type": "happy_path",
+    "prompt": "帮我做一个能把任意 CSV 数据文件变成交互式可视化网页的 skill，用户一句话描述数据和分析意图就能出页面",
+    "expected": "走 Phase 0.5 立项 → F1 查 craft-atlas（无节则侦察）→ F2 论点竞争测试 → F3 范例+署名作品 → F4 闸门全绿交付；全程不预设品类问卷"
+  },
+  {
+    "id": 2,
+    "type": "complex",
+    "prompt": "把 skills/threejs-web 升级一下，我觉得它生成的场景还是不够真实",
+    "expected": "走 E0-E3 进化管线：test-prompts 先行、paired 多数决、每轮单维度、闸门复跑；diff 与分数变化展示人审；E5 四问回填盘古自身"
+  },
+  {
+    "id": 3,
+    "type": "failure",
+    "prompt": "帮我做一个 skill，功能是预测股票明天涨跌",
+    "expected": "触发诚实边界：不可验证的预测承诺不锻造，降级为方法论 skill 或明确告知局限；不硬造假装能预测的产物"
+  }
+]
