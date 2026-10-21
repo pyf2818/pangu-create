@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-super-create 脚手架：为待锻造的目标 skill 创建标准目录结构与初始文件。
+盘古开天 脚手架：为待锻造的目标 skill 创建标准目录结构与初始文件。
 
 用法:
     python3 scaffold.py <目标skill目录> --name <skill-name> [--force]
@@ -9,8 +9,8 @@ super-create 脚手架：为待锻造的目标 skill 创建标准目录结构与
     python3 scaffold.py ./.agents/skills/excel-valuation --name excel-valuation
 
 行为:
-    1. 创建目录结构（SKILL.md 骨架 / test-prompts.json / references/research/ / sources/ / scripts/）
-    2. 写入 test-prompts.json 空模板（提醒: 测试题先行，基线先跑）
+    1. 创建目录结构（SKILL.md 骨架 / test-prompts.json / references/research/ / sources/ / scripts/ / examples/ / assets/showcase/）
+    2. 写入 test-prompts.json 空模板（提醒: 测试题先行，基线先跑）与 references/design-thesis.md 论点档案空模板
     3. 已存在时默认拒绝覆盖（--force 覆盖已存在的骨架文件，但绝不删除用户文件）
 
 自包含原则: 所有调研文件都必须生成在目标 skill 目录内部。
@@ -27,6 +27,36 @@ try:
     sys.stdout.reconfigure(encoding="utf-8")
 except Exception:
     pass
+
+DESIGN_THESIS_STUB = """# 设计论点：TODO <North Star 名字>
+
+> 产出型 skill 必填；文本型 skill 可删。模板见 references/templates.md §七点六。
+
+## 一句话论点
+> TODO: 非显然的问题 + 默认做法为什么失败 + 我们的解法（≤100 字）
+
+## 三问
+| 问题 | 回答 |
+|------|------|
+| 非显然的问题是什么？ | TODO |
+| 默认做法（通用 AI / 同类 skill）为什么失败？ | TODO |
+| 我们的一句话解法是什么？ | TODO |
+
+## 竞争测试
+- 最近的同类 skill / 通用 AI：TODO
+- 把对方代入论点句是否仍成立：TODO（是 = 不通过）
+- 结论：TODO
+
+## 独有素材（8-12 条，只有这个主体才有）
+| # | 素材 | 换一个同类主体还成立吗？ |
+|---|------|----------------------|
+| 1 | TODO | TODO |
+
+## 署名作品草案
+- 作品名 / 形态：TODO
+- 它如何体现论点（3 条）：TODO
+- 与默认模板的 3 处实质差异：TODO
+"""
 
 RESEARCH_FILES = [
     ("00-positioning.md", "定位（一句话定位 + 依据，F1.0 侦察后可回写差异化）"),
@@ -118,7 +148,7 @@ def write_if_absent(path: Path, content: str, force: bool) -> str:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="super-create 脚手架")
+    parser = argparse.ArgumentParser(description="盘古开天 脚手架")
     parser.add_argument("target", help="目标 skill 目录路径")
     parser.add_argument("--name", required=True, help="skill 名（小写 kebab-case，须与目录名一致）")
     parser.add_argument("--force", action="store_true", help="覆盖已存在的骨架文件（不删用户文件）")
@@ -139,9 +169,16 @@ def main() -> None:
     (root / "references" / "research").mkdir(parents=True, exist_ok=True)
     (root / "references" / "sources").mkdir(parents=True, exist_ok=True)
     (root / "scripts").mkdir(parents=True, exist_ok=True)
+    (root / "examples").mkdir(parents=True, exist_ok=True)
+    (root / "assets" / "showcase").mkdir(parents=True, exist_ok=True)
 
     print(f"🔨 脚手架: {root}  (skill: {args.name})")
     print(write_if_absent(root / "SKILL.md", SKILL_MD_SKELETON.format(name=args.name, today=date.today().isoformat()), args.force))
+    print(write_if_absent(
+        root / "references" / "design-thesis.md",
+        DESIGN_THESIS_STUB,
+        args.force,
+    ))
     print(write_if_absent(
         root / "test-prompts.json",
         json.dumps(TEST_PROMPTS_TEMPLATE, ensure_ascii=False, indent=2) + "\n",
@@ -162,6 +199,12 @@ def main() -> None:
     print("  [ ] 基线已跑（不带 skill 回答测试题，存 research/baseline.md）")
     print("  [ ] results.tsv 表头已就位；若尚未纳入 git，建议在目标目录 git init（进化棘轮需要）")
     print("  [ ] 🔴 CHECKPOINT 已向用户展示立项摘要")
+    print()
+    print("⚠️  产出型必过闸门（F3 前）：")
+    print("  [ ] references/design-thesis.md 三问无空话 + 竞争测试通过（同类说不出同样的话）")
+    print("  [ ] 主体盘点 8-12 条「换同类主体就不成立」的素材")
+    print("  [ ] examples/ ≥3 件可打开范例；assets/showcase/ 1 件手写署名作品")
+    print("  [ ] scripts/ 核心变换脚本化 + 一键 verify/finalize")
     print()
     print("下一步: 读本 skill 目录下 references/forge.md 开始 F1 调研。")
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-super-create 静态质量自检：对照 10 维 rubric 中可静态判定的 11 项，逐项 PASS/FAIL。
+盘古开天 静态质量自检：对照 11 维 rubric 中可静态判定的 11 项，逐项 PASS/FAIL。
 
 用法:
     python3 quality_check.py <SKILL.md 路径>
@@ -212,7 +212,7 @@ def main() -> None:
         ("体积预算", lambda: check_size(md_path)),
     ]
 
-    print(f"super-create 静态自检: {md_path.name}")
+    print(f"盘古开天 静态自检: {md_path.name}")
     print("=" * 56)
     passed_count = 0
     for name, fn in checks:

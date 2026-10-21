@@ -30,7 +30,11 @@ results.tsv 格式（9 列，制表符分隔）：
 timestamp	commit	skill	old_score	new_score	status	dimension	note	eval_mode
 ```
 
-`eval_mode` 取值：`paired`（同 judge 比改前改后，keep/revert 唯一权威依据）｜`full_test`（子 agent 跑真实测试题）｜`dry_run`（模拟推演，仅供参考）。paired 行的 `new_score` 栏记投票比数（如 `3-0 better`），`note` 记一句裁断理由。
+`eval_mode` 取值：`paired`（同 judge 比改前改后，keep/revert 唯一权威依据）｜`full_test`（子 agent 跑真实测试题）｜`dry_run`（模拟推演，仅供参考）｜`self_eval`（无独立 judge，作者自评/目检——**不得 keep、不得宣称发布级**）。
+
+- paired 行的 `new_score` 栏记投票比数（如 `3-0 better`），`note` 记一句裁断理由
+- **产出型 skill 的 paired 必须比成品**：同 judge 同次看改前/改后各生成的成品（截图/视频/页面），不是比 SKILL.md 文本；只比文本 = 优化了文档，作品没变
+- 无独立 judge 时写 `self_eval`，只作为待验证记录，不进棘轮（实证：web-game-craft 曾以同上下文自评比出 79.3→86.3 keep，属记账造假）
 
 ## E0.5 测试题设计
 
@@ -48,9 +52,10 @@ for each skill:
   2. 运行时中立性红灯扫描（gate 项，扫描命令与假阳性判别见 rubric.md 末节）
   3. 效果维度（维度 8）：每个测试题 spawn 子 agent——
      with_skill：带着 SKILL.md 执行
-     baseline：不带 skill 执行
+     baseline：不带 skill 执行（必须真实跑，不许猜「无 skill 大概会怎样」）
      对比输出质量打分
-  4. 子 agent 不可用 → 干跑验证打分，标 dry_run（判定规则见 testing.md §6：full_test ≥1 次且 dry_run 数 < full_test 数，否则评估失效警告）
+     产出型 skill 额外跑产出质量门（参照物/工艺参数/盲评/反模板/三秒，见 testing.md §9 与 output-quality.md）
+  4. 子 agent 不可用 → 干跑验证打分，标 dry_run（判定规则见 testing.md §8：full_test ≥1 次且 dry_run 数 < full_test 数，否则评估失效警告）；同上下文自评必须标 self_eval，不得 keep
   5. 计算加权总分，记入 results.tsv
 ```
 
@@ -73,6 +78,8 @@ for each skill（按基线分升序，先修最弱的）:
     #     另两维常跟涨，看整簇短板再决定是否同步改，避免下轮白做
 
     # Step 2 改进方案：改什么（具体段落）、为什么（对应 rubric 条目）、预期提升
+    #   ⚠ 产出型 skill：改动必须能落到产出——用改后 skill 重新生成一件成品，
+    #     judge 比的是成品（截图/视频/页面），不是 SKILL.md 文案；只改文案不改产物 = 无效轮
     #   改动后体积不得超过原 SKILL.md 的 150%，超了 → 先精简再评
     #   ⚔ 钢人反对（思维工具）：写完方案先构造「最强反对」——为什么这会变差/为什么没必要；
     #     反对成立 → 方案重写，不带着自我怀疑上 commit
@@ -82,6 +89,7 @@ for each skill（按基线分升序，先修最弱的）:
     # Step 4 paired 重评：spawn N=3 个独立 judge（close call 升 5，N 保持奇数），
     #   每个 judge 在【同一次调用内】读改前版（git show HEAD~1:<path>）与改后版，
     #   以 rubric 为比较准则（不是各打绝对分），回 {better|worse|tie} + margin{clear|slight} + 一句理由。
+    #   产出型 skill：judge 读的是两版各自生成的成品，SKILL.md 只作背景；无独立 judge → self_eval 不得 keep
     #   同一 judge 同次读两版 → 它那把不准的尺对两版等量作用、在比较中抵销
 
     # Step 5 共识决策：
