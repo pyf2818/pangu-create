@@ -17,6 +17,8 @@
 
 [快速开始](#快速开始) · [怎么用](#怎么用) · [质量体系](#质量体系) · [进化循环](#进化循环) · [FAQ](#faq) · [已知局限](#已知局限)
 
+**中文** · [English](README.en.md)
+
 </div>
 
 ---
@@ -284,6 +286,7 @@ python scripts/analyze_evolution.py my-skill/results.tsv
 pangu-create/
 ├── SKILL.md                    # 主编排：入口分流、双管线、检查点、15 条铁律、28 条反模式
 ├── README.md                   # 你正在读的文件
+├── README.en.md                # English overview（英文速览）
 ├── assets/banner.svg           # 视觉标识
 ├── references/
 │   ├── forge.md                # 锻造管线详解（调研 / 内核提炼 / 构建 / 出厂测试 / 精炼）
@@ -372,7 +375,7 @@ pangu-create/
 产出型 skill 必须有「确定性核心」（一键 verify / finalize）；纯文本型 skill 可只交付骨架与测试题，闸门会按 `--type text` 降级。
 
 **Q：中文还是英文？**
-本体是中文，frontmatter 与触发词包含英文别名；产出的 skill 语言跟随用户与领域素材。
+本体是中文，frontmatter 与触发词包含英文别名；英文速览见 [README.en.md](README.en.md)；产出的 skill 语言跟随用户与领域素材。
 
 ---
 
