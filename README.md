@@ -9,7 +9,7 @@
 
 *A meta-skill that forges any domain into a verifiable, evolvable Agent Skill.*
 
-[![version](https://img.shields.io/badge/version-1.1.0-C8955A?style=flat-square)](https://github.com/pyf2818/pangu-create/releases)
+[![version](https://img.shields.io/badge/version-1.2.0-C8955A?style=flat-square)](https://github.com/pyf2818/pangu-create/releases)
 [![license](https://img.shields.io/badge/license-MIT-3B82F6?style=flat-square)](LICENSE)
 [![python](https://img.shields.io/badge/python-3.9%2B-3776AB?style=flat-square)](scripts)
 [![Agent Skill](https://img.shields.io/badge/Agent%20Skill-compatible-8B5CF6?style=flat-square)](#快速开始)
@@ -139,7 +139,7 @@ python pangu-create/scripts/quality_check.py pangu-create/SKILL.md
 # 结果: 11/11 通过
 
 python pangu-create/scripts/rubric_score.py pangu-create/SKILL.md
-# 文档结构分 76/81（不含维度 8「实测表现」的 19 分，需人工跑测试题）
+# 文档结构分 81/81（type=text 自动探测；不含维度 8「实测表现」的 19 分，需人工跑测试题）
 ```
 
 安装完成后，直接对 Agent 说：

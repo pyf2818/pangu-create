@@ -15,6 +15,7 @@ description: |
 > 盘古开天，万物始生。此 skill 只做一件事：把任何领域、任何任务、任何专家经验，锻造成 AI 拿到就能执行的可运行资产。
 > skill 不是提示词片段，是把「专家怎么思考、怎么做事、怎么避坑」封装成可复现的工艺。
 >
+> **第 3 代（v1.2.0，2026-10-24）**：rubric 分型评分（`--type auto|output|text`，元技能 D6/D11 假阴性修复）、verify_skill 文本型补进化三件套闸门、铁律 13 与 AP24 合并去重（paired 3-0 keep）、README.en.md 英文门面。
 > **第 2 代（v1.1.0，2026-10-22）**：csvviz-forge 无人值守实测回流——评分器假阴性修复（rubric/quality_check/verify_skill）、scaffold 格式契约前置、盲评串行协议、F5 反评分 chase 追问、paired 降级模式合法化、AP-16。
 
 ## 核心理念
