@@ -194,12 +194,27 @@ def gate_evidence(root: Path):
     return True, f"{len(filled)} 行带证据，最近：{(filled[-1].get('evidence') or '')[:48]}"
 
 
+def gate_trio(root: Path):
+    """文本型闸门：进化三件套（铁律 10）——test-prompts / results.tsv / git 或备份链。"""
+    issues = []
+    if not (root / "test-prompts.json").exists():
+        issues.append("缺 test-prompts.json（测试题）")
+    if not (root / "results.tsv").exists():
+        issues.append("缺 results.tsv（进化账本）")
+    has_vcs = (root / ".git").exists() or bool(list(root.glob("*.bak.*")))
+    if not has_vcs:
+        issues.append("缺 git 仓库或 SKILL.md.bak.* 备份链（棘轮载体）")
+    if issues:
+        return False, "；".join(issues)
+    return True, "test-prompts.json + results.tsv + git/备份链 齐备"
+
+
 
 def main() -> None:
     ap = argparse.ArgumentParser(description="产出型 skill 出厂闸门（exit 1 即拦截）")
     ap.add_argument("skill_dir", help="目标 skill 目录")
     ap.add_argument("--type", choices=["output", "text"], default="output",
-                    help="output=产出型（跑全部闸门）；text=文本型（只查骨架）")
+                    help="output=产出型（跑全部闸门）；text=文本型（查确定性核心+进化三件套+交付证据）")
     ap.add_argument("--json", action="store_true", help="JSON 输出")
     args = ap.parse_args()
 
@@ -221,6 +236,12 @@ def main() -> None:
             ("确定性核心", *gate_core(root)),
             ("承诺矩阵", *gate_promise(root)),
             ("故障注入", *gate_failure_injection(root)),
+            ("交付证据", *gate_evidence(root)),
+        ]
+    else:
+        gates += [
+            ("确定性核心", *gate_core(root)),
+            ("进化三件套", *gate_trio(root)),
             ("交付证据", *gate_evidence(root)),
         ]
 

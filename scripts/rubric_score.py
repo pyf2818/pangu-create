@@ -10,7 +10,12 @@
   - 输出与 quality_check.py 互补：后者是 11 项二值自检（粗筛），本脚本是细粒度打分
 
 用法:
-    python3 rubric_score.py <SKILL.md 路径> [--json]
+    python3 rubric_score.py <SKILL.md 路径> [--type auto|output|text] [--json]
+
+分型（D6/D11 的判据随类型切换，与 verify_skill.py --type 同一口径）:
+    output  产出型：有 examples/showcase 范例资产，或无元技能特征（从严）
+    text    文本/元技能型：无范例资产 + 正文含元技能特征（锻造管线/万物皆可成技能等）
+    auto    先看范例资产（最硬证据），无资产再按正文特征判 text；都判不出按 output 从严
 
 退出码:
     0 全维度有分（维度 8 标注需人工也算 0）
@@ -46,6 +51,30 @@ WEIGHTS = {
 MAX_BODY_LINES = 500
 SOFTENERS = ["建议你", "可以考虑", "视情况", "灵活把握", "酌情", "根据情况判断", "灵活应用"]
 AI_FILLER = ["说白了", "换句话说", "首先其次综上", "总而言之", "综上所述"]
+
+META_HINT = re.compile(r"元技能|锻造管线|万物皆可成技能|创建 ?skill|造 ?skill|蒸馏成 ?skill")
+CORPUS_DIRS = ("examples", "assets/examples", "showcase", "assets/showcase")
+
+
+def detect_skill_type(md_path: Path, body: str, forced: str = "auto") -> str:
+    """D6/D11 分型（与 verify_skill.py --type 同一口径）。
+
+    实测坑（pangu-create 自评假阴性）：元技能 SKILL.md 里给下游技能写的模板路径
+    （references/design-thesis.md 等）被 D6 当成自身失效引用、D11 被判「无范例」——
+    元技能的范例是它锻造出的下游 skill，不存在于自身目录。分型后各用各的判据。
+    """
+    if forced in ("output", "text"):
+        return forced
+    root = md_path.parent
+    has_corpus = any(
+        (root / d).exists() and any(f.is_file() for f in (root / d).rglob("*"))
+        for d in CORPUS_DIRS
+    )
+    if has_corpus:
+        return "output"
+    if META_HINT.search(body):
+        return "text"
+    return "output"  # 无范例资产也无元技能特征：按产出型从严（D11 会如实指出缺范例）
 
 
 def split_frontmatter(content: str):
@@ -240,7 +269,7 @@ def score_dim5_specificity(body: str):
     return score, "; ".join(reasons)
 
 
-def score_dim6_resources(md_path: Path, body: str, fm: str | None):
+def score_dim6_resources(md_path: Path, body: str, fm: str | None, skill_type: str = "output"):
     """维度6 资源整合度（权重4）"""
     text = (fm or "") + "\n" + body
     root = md_path.parent
@@ -262,18 +291,22 @@ def score_dim6_resources(md_path: Path, body: str, fm: str | None):
 
     # 任何位置的路径提及都算引用（file map 树/代码围栏/内联代码）——
     # 实测坑（csvviz-forge）：旧正则只认 md 链接+指令性 backtick，对代码围栏里的 file map 失明，
-    # 与 quality_check/verify_skill 的资源闸门互相矛盾
-    for m in re.findall(r"(?:references|scripts|assets|templates)/[\w\-./]+", text):
-        if m.endswith(KNOWN_EXT):
-            refs.add(m)
+    # 与 quality_check/verify_skill 的资源闸门互相矛盾。
+    # 但仅对产出型生效：文本/元技能型的围栏路径是给下游技能的模板骨架，不是自身资源
+    # （实测坑：pangu-create 自评 D6=4/10 假阴性，9 个「失效引用」全是指向下游产物的模板路径）
+    if skill_type != "text":
+        for m in re.findall(r"(?:references|scripts|assets|templates)/[\w\-./]+", text):
+            if m.endswith(KNOWN_EXT):
+                refs.add(m)
 
     if not refs:
         return 8, "无本地资源引用（单文件 skill），降级扣分"
     missing = [r for r in sorted(refs) if not (root / r).exists()]
+    mode_note = "；text 型：围栏模板路径不计为自身引用" if skill_type == "text" else ""
     if not missing:
-        return 10, f"{len(refs)} 个引用全部可达 ✓"
+        return 10, f"{len(refs)} 个引用全部可达 ✓{mode_note}"
     else:
-        return 4, f"{len(missing)}/{len(refs)} 个引用失效 ✗: {missing[:3]}"
+        return 4, f"{len(missing)}/{len(refs)} 个引用失效 ✗: {missing[:3]}{mode_note}"
 
 
 def score_dim7_architecture(body: str, md_path: Path):
@@ -389,7 +422,7 @@ def score_dim10_taste(body: str):
     return score, "; ".join(reasons)
 
 
-def score_dim11_insight(md_path: Path, body: str):
+def score_dim11_insight(md_path: Path, body: str, skill_type: str = "output"):
     """维度11 设计洞察与署名作品（权重10）"""
     root = md_path.parent
     checks = {}
@@ -403,6 +436,32 @@ def score_dim11_insight(md_path: Path, body: str):
     checks["competition_test"] = bool(
         re.search(r"竞争测试|competitor test|同类.{0,12}成立|只有本 ?skill", body, re.IGNORECASE)
     )
+
+    if skill_type == "text":
+        # 文本/元技能型：范例=它锻造/服务的下游产物，不存在于自身目录——
+        # 判据换成「进化三件套」（test-prompts/results.tsv/git 或备份链，铁律 10）
+        trio = [
+            (root / "test-prompts.json").exists(),
+            (root / "results.tsv").exists(),
+            (root / ".git").exists() or bool(list(root.glob("*.bak.*"))),
+        ]
+        checks["evolution_trio"] = all(trio)
+
+        # 确定性核心：核心变换脚本化 + 一键 verify/finalize
+        scripts_dir = root / "scripts"
+        script_files = [p for p in scripts_dir.rglob("*") if p.is_file()] if scripts_dir.exists() else []
+        has_scripts = bool(script_files)
+        has_verify = any(
+            re.search(r"(verify|finalize|build|validate)\.(py|mjs|js|sh)$", p.name)
+            for p in script_files
+        ) or bool(re.search(r"一键|verify|finalize", body, re.IGNORECASE) and has_scripts)
+        checks["deterministic_core"] = has_scripts and has_verify
+
+        passed = sum(checks.values())
+        score = {4: 10, 3: 8, 2: 5, 1: 3, 0: 0}[passed]
+        reasons = [k.replace("_", " ") + ("✓" if v else "✗") for k, v in checks.items()]
+        reasons.append("text 型判据（三件套替代范例集/署名作品）")
+        return score, "; ".join(reasons)
 
     # 11c 论点档案落盘
     checks["thesis_file"] = (root / "references" / "design-thesis.md").exists()
@@ -465,23 +524,27 @@ def scan_runtime_neutrality(body: str, fm: str | None):
 # ═══════════════════════════════════════════════════════════════════════════
 
 SCORE_FUNCS = {
-    1: lambda md, fm, body: score_dim1_frontmatter(fm, body),
-    2: lambda md, fm, body: score_dim2_workflow(body),
-    3: lambda md, fm, body: score_dim3_failure(body),
-    4: lambda md, fm, body: score_dim4_checkpoints(body),
-    5: lambda md, fm, body: score_dim5_specificity(body),
-    6: lambda md, fm, body: score_dim6_resources(md, body, fm),
-    7: lambda md, fm, body: score_dim7_architecture(body, md),
-    8: lambda md, fm, body: score_dim8_testing(),
-    9: lambda md, fm, body: score_dim9_anti_examples(body),
-    10: lambda md, fm, body: score_dim10_taste(body),
-    11: lambda md, fm, body: score_dim11_insight(md, body),
+    1: lambda md, fm, body, st: score_dim1_frontmatter(fm, body),
+    2: lambda md, fm, body, st: score_dim2_workflow(body),
+    3: lambda md, fm, body, st: score_dim3_failure(body),
+    4: lambda md, fm, body, st: score_dim4_checkpoints(body),
+    5: lambda md, fm, body, st: score_dim5_specificity(body),
+    6: lambda md, fm, body, st: score_dim6_resources(md, body, fm, st),
+    7: lambda md, fm, body, st: score_dim7_architecture(body, md),
+    8: lambda md, fm, body, st: score_dim8_testing(),
+    9: lambda md, fm, body, st: score_dim9_anti_examples(body),
+    10: lambda md, fm, body, st: score_dim10_taste(body),
+    11: lambda md, fm, body, st: score_dim11_insight(md, body, st),
 }
 
 
 def main():
     parser = argparse.ArgumentParser(description="盘古开天 rubric 自动评分")
     parser.add_argument("md_path", help="SKILL.md 路径")
+    parser.add_argument("--type", choices=["auto", "output", "text"], default="auto",
+                        help="output=产出型（D6 围栏路径计入/D11 查范例集）；"
+                             "text=文本型（D6 围栏模板路径不计/D11 查进化三件套）；"
+                             "auto=范例资产优先，其次正文元技能特征")
     parser.add_argument("--json", action="store_true", help="JSON 输出")
     args = parser.parse_args()
 
@@ -492,19 +555,20 @@ def main():
 
     content = md_path.read_text(encoding="utf-8")
     fm, body = split_frontmatter(content)
+    skill_type = detect_skill_type(md_path, body, args.type)
 
     results = {}
     total_weighted = 0.0
     total_weight = 0
 
-    print(f"rubric 评分: {md_path.name}")
+    print(f"rubric 评分: {md_path.name}（type={skill_type}）")
     print("=" * 60)
 
     for dim_num in range(1, 12):
         name, weight = WEIGHTS[dim_num]
         fn = SCORE_FUNCS[dim_num]
         try:
-            score, reason = fn(md_path, fm, body)
+            score, reason = fn(md_path, fm, body, skill_type)
         except Exception as e:
             score, reason = None, f"检查器异常: {e}"
 
@@ -569,6 +633,7 @@ def main():
     if args.json:
         output = {
             "skill": md_path.name,
+            "skill_type": skill_type,
             "auto_score": round(total_weighted, 1),
             "auto_max": auto_max,
             "dim8_needs_human": True,
