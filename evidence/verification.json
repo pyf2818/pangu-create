@@ -1,0 +1,66 @@
+{
+  "format_version": 1,
+  "executed_at": "2026-10-25T04:35:40.950705+00:00",
+  "skill": "pangu-create",
+  "complete": true,
+  "suite_ids": [
+    "tools-regression",
+    "failure-injection",
+    "scaffold-contract"
+  ],
+  "source_file_count": 35,
+  "source_sha256": "83fd99656106e3da95aa1062ef5285e1ba126f0c4837b6b6f1636b7b591a58aa",
+  "contract_sha256": "d2386cbe63c7dc8a537a0317f9c2b51b2b633775e2f0ad1a49a149355bee04bb",
+  "overall_exit_code": 0,
+  "status": "pass",
+  "suites": [
+    {
+      "id": "tools-regression",
+      "kind": "behavior",
+      "command": [
+        "python",
+        "tests/test_tools_regression.py"
+      ],
+      "started_at": "2026-10-25T04:35:38.559298+00:00",
+      "status": "pass",
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ".........\n----------------------------------------------------------------------\nRan 9 tests in 0.122s\n\nOK\n",
+      "failures": [],
+      "artifacts": [],
+      "finished_at": "2026-10-25T04:35:38.785321+00:00"
+    },
+    {
+      "id": "failure-injection",
+      "kind": "failure_injection",
+      "command": [
+        "python",
+        "tests/test_gate_adversarial.py"
+      ],
+      "started_at": "2026-10-25T04:35:38.785337+00:00",
+      "status": "pass",
+      "exit_code": 0,
+      "stdout": "[A] 非法清单\n  PASS  A1 拒绝 shell 字符串命令 :: behavior-ok：command 必须是非空字符串数组，不接受 shell 字符串\n  PASS  A2 拒绝 python -c :: behavior-ok：命令必须指定一个技能目录内的 .py 测试脚本\n  PASS  A3 拒绝越界路径 :: behavior-ok：命令参数不得指向技能目录之外\n  PASS  A4 拒绝非数组 artifacts :: behavior-ok artifacts 必须是数组\n  PASS  A5 拒绝不足两类注入 :: failure-injection 必须声明至少两类实际执行的注入 categories\n[B] 承诺绑定\n  PASS  B1 合法承诺矩阵通过 :: 3 条承诺均绑定测试 ID 与回执\n  PASS  B2 拒绝命令文本冒充测试 ID :: 「a」第三列须引用清单中的测试 ID；「a」证据须指向当前回执的同一测试 ID\n  PASS  B3 拒绝证据指针串号 :: 「a」证据须指向当前回执的同一测试 ID\n[C] 回执核验\n  PASS  C1 新鲜完整回执通过 :: 当前源码的完整行为回执有效（2 套件）\n  PASS  C2 源码变化后回执过期 :: 源码或产物已变化，回执过期\n  PASS  C3 清单变化后回执过期 :: 回执没有完整覆盖当前测试清单；源码或产物已变化，回执过期；测试清单已变化，回执过期；回执套件与当前清单不一致\n  PASS  C4 含失败套件的回执被拒 :: 回执含未通过套件\n  PASS  C5 部分回执被拒 :: 回执没有完整覆盖当前测试清单；回执套件与当前清单不一致\n  PASS  C6 畸形回执被拒 :: 回执不可解析：Expecting property name enclosed in double quotes: line 1 column 2 (char 1)\n[D] 环境故障分流\n  PASS  D1 环境故障 exit 2 且不算通过 :: exit=2 status=env_error\n[E] CLI 交付判定\n  PASS  E1 --execute 全过才 delivery_ready :: exit=0 ready=True\n  PASS  E2 --check 可复验新鲜回执 :: exit=0 ready=True\n  PASS  E3 --check 拦截过期回执 :: exit=1 ready=False\n\nFAILURE_INJECTION 18 PASS / 0 FAIL\n",
+      "stderr": "",
+      "failures": [],
+      "artifacts": [],
+      "finished_at": "2026-10-25T04:35:40.136094+00:00"
+    },
+    {
+      "id": "scaffold-contract",
+      "kind": "behavior",
+      "command": [
+        "python",
+        "tests/test_scaffold.py"
+      ],
+      "started_at": "2026-10-25T04:35:40.136104+00:00",
+      "status": "pass",
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": "...\n----------------------------------------------------------------------\nRan 3 tests in 0.635s\n\nOK\n",
+      "failures": [],
+      "artifacts": [],
+      "finished_at": "2026-10-25T04:35:40.866433+00:00"
+    }
+  ]
+}

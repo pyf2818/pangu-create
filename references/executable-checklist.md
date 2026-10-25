@@ -1,7 +1,7 @@
 # 可执行技能出厂预检（Executable Delivery Checklist）
 
 > 来源：threejs-web 2026-10-21 实战复盘。那一刻 `verify_skill.py` 全绿，但范例页实际 14 FPS、断网时降级横幅永远不会出现。
-> 结论只有一句：**闸门测「有没有写全」不等于测「承诺是否成立」。没有断言的承诺是空话，没有命令的断言是装饰。**
+> 结论只有一句：**闸门测「有没有写全」不等于测「承诺是否成立」。没有断言的承诺是空话，没有测试 ID 的断言是装饰，没有新鲜回执的证据是历史。**
 
 适用：所有「交付物能被打开/运行/调用」的技能（产出型、工具型、自动化型）。纯文本方法论技能只跑第 1 项与第 9 项。
 
@@ -9,21 +9,21 @@
 
 ## 1. 承诺 → 断言矩阵（每个可执行技能必交）
 
-落在目标 skill 的 `references/promise-table.md`，SKILL.md 里写的每一条「能做到 X」，都要在这里有一行。
+落在目标 skill 的 `references/promise-table.md`，SKILL.md 里写的每一条「能做到 X」，都要在这里有一行；第三列必须是 `tests/verification.json` 里的测试 ID，第四列必须是 `evidence/verification.json#同一 ID` 的新鲜回执指针。命令写在测试清单里，不写在承诺表里——一处事实源。
 
-| 承诺（用户视角原话） | 可执行断言 | 命令 | 证据 | 状态 |
-|---|---|---|---|---|
-| 「双击就能打开，看到光影成立」 | canvas 存在、无 pageerror、FPS ≥ 20、截图非黑屏 | `python scripts/scene_check.py examples/01.html` | `scene_check.png` + JSON | PASS |
-| 「断网会明确提示，不会白屏」 | 屏蔽 CDN 后 `__loadFailed === true` 且横幅可见 | `python scripts/scene_check.py examples/01.html --expect-fail` | JSON `load_failed:true` | PASS |
-| 「换一个模型执行也不漂移」 | 核心产物由脚本生成，重复执行哈希一致 | `python scripts/verify.py` | JSON `ok:true` | PASS |
+| 承诺（用户视角原话） | 可执行断言 | 测试 ID | 证据 |
+|---|---|---|---|
+| 「双击就能打开，看到光影成立」 | canvas 存在、无 pageerror、FPS ≥ 20、截图非黑屏 | scene-open | evidence/verification.json#scene-open |
+| 「断网会明确提示，不会白屏」 | 屏蔽 CDN 后 `__loadFailed === true` 且横幅可见 | offline-fallback | evidence/verification.json#offline-fallback |
+| 「换一个模型执行也不漂移」 | 核心产物由脚本生成，重复执行哈希一致 | deterministic-build | evidence/verification.json#deterministic-build |
 
 **规则**：
 
 1. 最少 3 行；≤3 条承诺的 skill 说明它没想清楚交付形态
-2. 「命令」列必须能在干净环境里复制执行；写「见文档」「人工检查」= 不合格
-3. 「证据」列写文件名或 JSON 字段；只写「已确认」= 不合格
+2. 测试 ID 必须存在且在清单里声明了命令数组；清单命令不得用 shell 字符串
+3. 证据必须指向新鲜回执；旧回执、写「已确认」「已测试」= 不合格
 4. 断言做不到 → 回头**改承诺**（SKILL.md 降级措辞），不许留空行
-5. 交付摘要必须贴这张表的最新一次执行结果（PASS/FAIL + 数字）
+5. 交付摘要必须贴 `--execute` 的最新结果（PASS/FAIL + 数字 + 执行时间），不贴历史最好成绩
 
 ---
 
@@ -31,16 +31,16 @@
 
 | # | 检查项 | 通过标准 | 机器落点 |
 |---|--------|---------|---------|
-| 1 | 承诺→断言矩阵 | ≥3 行，命令可复制，证据可指认 | `references/promise-table.md` + `verify_skill.py` |
-| 2 | 故障注入测试 | 存在至少一个可执行失败注入：屏蔽网络/删除依赖/传坏参数，且断言「降级可见」而不是静默失败 | `tests/failure_injection.*` 或脚本 `--expect-fail` |
+| 1 | 承诺→断言矩阵 | ≥3 行，每行绑定清单测试 ID 与新鲜回执指针 | `references/promise-table.md` + `verify_skill.py --execute` |
+| 2 | 故障注入测试 | `tests/verification.json` 至少一个 `failure_injection` suite，声明并真实执行 ≥2 类注入；断言「降级可见」而不是静默失败 | 清单 suite + `tests/failure_injection.*` |
 | 3 | 降级提示真的会出现 | 前端类：看门狗写在 `module` **之外**（模块本身加载失败时 module 内代码一行都不执行）；网络类：超时后可见文案 | 故障注入实测 |
 | 4 | 外部依赖可达性 | 依赖清单 + 当前可达源实测；CDN 只声明单一源（importmap 不支持多源回退，禁写「主源 + 备源」假装容错） | 可达性探测命令 |
 | 5 | 性能预算前置 | 构建前写预算表：帧率 / 包体 / 内存 / 首屏时延 / token；预算来自定位，不是实测后回填 | `references/promise-table.md` 预算行 |
-| 6 | 阈值留余量 | 实测需 ≥ 阈值 × 1.5，或 3 次采样取中位数；贴着阈值定 = 闸门会随机变红 | 验收脚本采样逻辑 |
+| 6 | 阈值留余量 | 单次实测 ≥ 阈值 × 1.5，或 3 次采样中位数与最小值均 ≥ 阈值；贴着阈值定 = 闸门会随机变红 | 验收脚本采样逻辑 |
 | 7 | 环境故障 vs 产品缺陷分流 | 退出码 0 通过 / 1 产品缺陷 / 2 环境故障（网络、无 GPU、缺浏览器）；2 不判产品死，但要重跑留证 | 验收脚本 exit code |
 | 8 | 验收工具自测三态 | 每个 gate 脚本用三个 fixture 自测：必过 / 必挂 / 环境故障；三态都正确才可信 | `tests/` 下 fixture |
 | 9 | 核心变换脚本化 | 主要生成/校验由脚本承担，一条命令可跑，失败给可操作修复提示 | `scripts/` |
-| 10 | 证据落盘 | 每次验收产出 JSON 回执 + 截图/产物 + 时间戳，不靠对话记忆 | 验收脚本输出 |
+| 10 | 证据落盘 | 每次验收产出 JSON 回执 + 截图/产物 + 时间戳；回执绑定源码/清单哈希，改文件即失效 | `verify_skill.py --execute` → `evidence/verification.json` |
 | 11 | 断网/无 GPU 可用性 | 承诺「双击即开」就必须内置离线依赖；只靠 CDN 必须在读我/README 首屏明示网络依赖 | 断网实测或声明 |
 | 12 | Dogfood 记录 | 用**用户原话**（不是改写过的示例）完整跑一次交付，记录进 `results.tsv` 的 `evidence` 列 | `results.tsv` |
 
@@ -52,7 +52,7 @@
 
 | 反例 | 正例 | 为什么 |
 |---|---|---|
-| `FPS ≥ 20`，实测 19 反复 | `FPS ≥ 20` 且实测需 ≥ 30，或 3 次取中位数 | 贴着阈值 = flaky 闸门，随机变红比没闸门更伤信任 |
+| `FPS ≥ 20`，实测 19 反复 | `FPS ≥ 20` 且单次实测需 ≥ 30；或 3 次采样中位数与最小值均 ≥ 20 | 贴着阈值 = flaky 闸门，随机变红比没闸门更伤信任 |
 | `note: 已验证通过` | `evidence: scene_check 3/3 PASS；01 fps=31、02 fps=30、03 fps=24；shot=scene_check.png` | 手写结论会漂移，机器数字可复查 |
 | `dry_run` 当基线 | 真实执行一遍并把回执贴进证据 | 猜测的基线让整条进化链虚高（实证：web-game-craft 自评 79.3→86.3 keep） |
 | CDN 写「jsdelivr 主 + unpkg 备」 | 单一可达源 + 看门狗降级 + 明示网络依赖 | importmap 不支持自动回退，双源是文档幻觉 |

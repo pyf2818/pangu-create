@@ -4,8 +4,10 @@
 对 SKILL.md 逐维打 1-10 分 × 权重，输出加权总分（满分 100）。
 
 设计原则:
-  - 维度 1-7、9、10、11（结构/元/品味/洞察维度）：静态分析自动打分
-  - 维度 8（实测表现）：标注「需人工实测」，给出评分指引不自动判分
+  - 维度 1-7、9、11（结构/元/材料维度）：静态分析自动打分
+  - 维度 8（实测表现）与维度 10（品味与排他性）：不自动判分——关键词命中不等于
+    作品更好，必须人工/盲评；自动总分上限 75，禁止把结构分当能力分
+  - 维度 11 自动项只证明材料存在（三问/竞争测试/范例），不裁决原创性
   - 绝对总分只用于 triage（哪支最弱、先改谁），keep/revert 一律走 paired 同-judge
   - 输出与 quality_check.py 互补：后者是 11 项二值自检（粗筛），本脚本是细粒度打分
 
@@ -149,7 +151,7 @@ def score_dim1_frontmatter(fm: str | None, content: str):
 
 
 def score_dim2_workflow(body: str):
-    """维度2 工作流清晰度（权重12）"""
+    """维度2 工作流清晰度（权重11）"""
     checks = {}
 
     # 2a 有阶段标题（Phase/阶段 ≥2 个）
@@ -177,7 +179,7 @@ def score_dim2_workflow(body: str):
 
 
 def score_dim3_failure(body: str):
-    """维度3 失败分支编码（权重12）"""
+    """维度3 失败分支编码（权重11）"""
     checks = {}
 
     # 3a 有"如果X失败"句式
@@ -228,7 +230,7 @@ def score_dim4_checkpoints(body: str):
 
 
 def score_dim5_specificity(body: str):
-    """维度5 可执行具体性（权重16）"""
+    """维度5 可执行具体性（权重12）"""
     scanned = _strip_quoted(_strip_anti_sections(body))
 
     # 5a 软化措辞计数（≥3 扣分）
@@ -310,7 +312,7 @@ def score_dim6_resources(md_path: Path, body: str, fm: str | None, skill_type: s
 
 
 def score_dim7_architecture(body: str, md_path: Path):
-    """维度7 整体架构（权重12）"""
+    """维度7 整体架构（权重10）"""
     checks = {}
 
     # 7a 正文 ≤500 行
@@ -369,7 +371,7 @@ def output_quality_evidence(md_path: Path, body: str):
 
 
 def score_dim9_anti_examples(body: str):
-    """维度9 反例与黑名单（权重6）"""
+    """维度9 反例与黑名单（权重4）"""
     checks = {}
 
     # 9a 有反模式章节
@@ -397,29 +399,16 @@ def score_dim9_anti_examples(body: str):
 
 
 def score_dim10_taste(body: str):
-    """维度10 品味与排他性（权重6）"""
-    checks = {}
+    """维度10 品味与排他性（权重6）——不自动判分。
 
-    # 10a 有铁律层
-    has_iron = bool(re.search(r"铁律|Iron Law|HARD RULES|Hard Rules|硬规则", body))
-    checks["has_iron"] = has_iron
-
-    # 10b 有品味层
-    has_taste = bool(re.search(r"品味|审美|俗手|辨识|Taste|风格|守则", body))
-    checks["has_taste"] = has_taste
-
-    # 10c 有反俗手/AI腔校准
-    has_anti_ai = bool(re.search(r"俗手|AI腔|反模式|anti-pattern|俗", body))
-    checks["has_anti_ai"] = has_anti_ai
-
-    # 10d 有工作示例或配方库（排他性信号）
-    has_examples = bool(re.search(r"工作示例|配方|配方库|示例|Worked Example|recipe", body, re.IGNORECASE))
-    checks["has_examples"] = has_examples
-
-    passed = sum(checks.values())
-    score = {4: 10, 3: 7, 2: 4, 1: 2, 0: 1}[passed]
-    reasons = [k.replace("_", " ") + ("✓" if v else "✗") for k, v in checks.items()]
-    return score, "; ".join(reasons)
+    关键词命中（「铁律」「俗手」「配方」）不能证明判断力属于领域前 1%，
+    旧实现会给「铁律 品味 反模式 示例」这类占位文本 10/10，属于重度虚高。
+    本维固定返回 None，由人工盲评按 rubric 锚点判定。
+    """
+    return None, (
+        "需人工盲评：判断「删掉领域名后仍能认出是谁家的方法论」；"
+        "关键词命中不作分数（见 rubric.md D10 锚点）"
+    )
 
 
 def score_dim11_insight(md_path: Path, body: str, skill_type: str = "output"):
@@ -461,6 +450,7 @@ def score_dim11_insight(md_path: Path, body: str, skill_type: str = "output"):
         score = {4: 10, 3: 8, 2: 5, 1: 3, 0: 0}[passed]
         reasons = [k.replace("_", " ") + ("✓" if v else "✗") for k, v in checks.items()]
         reasons.append("text 型判据（三件套替代范例集/署名作品）")
+        reasons.append("自动项仅证明材料存在；原创性与竞争结论需独立评审")
         return score, "; ".join(reasons)
 
     # 11c 论点档案落盘
@@ -538,19 +528,22 @@ SCORE_FUNCS = {
 }
 
 
+MANUAL_DIMS = {8, 10}
+
+
 def main():
-    parser = argparse.ArgumentParser(description="盘古开天 rubric 自动评分")
+    parser = argparse.ArgumentParser(description="盘古开天 rubric 自动评分（结构/材料维度；D8/D10 需人工）")
     parser.add_argument("md_path", help="SKILL.md 路径")
     parser.add_argument("--type", choices=["auto", "output", "text"], default="auto",
                         help="output=产出型（D6 围栏路径计入/D11 查范例集）；"
                              "text=文本型（D6 围栏模板路径不计/D11 查进化三件套）；"
                              "auto=范例资产优先，其次正文元技能特征")
-    parser.add_argument("--json", action="store_true", help="JSON 输出")
+    parser.add_argument("--json", action="store_true", help="stdout 只输出 JSON")
     args = parser.parse_args()
 
     md_path = Path(args.md_path)
     if not md_path.exists():
-        print(f"❌ 文件不存在: {md_path}")
+        print(f"❌ 文件不存在: {md_path}", file=sys.stderr)
         sys.exit(1)
 
     content = md_path.read_text(encoding="utf-8")
@@ -561,57 +554,78 @@ def main():
     total_weighted = 0.0
     total_weight = 0
 
-    print(f"rubric 评分: {md_path.name}（type={skill_type}）")
-    print("=" * 60)
-
     for dim_num in range(1, 12):
         name, weight = WEIGHTS[dim_num]
         fn = SCORE_FUNCS[dim_num]
         try:
             score, reason = fn(md_path, fm, body, skill_type)
-        except Exception as e:
-            score, reason = None, f"检查器异常: {e}"
+        except Exception as exc:
+            score, reason = None, f"检查器异常: {exc}"
 
-        if dim_num == 8:
-            # 维度8 需人工实测
-            weighted = 0  # 不算入总分
+        manual = dim_num in MANUAL_DIMS or score is None
+        if manual:
             results[dim_num] = {
                 "name": name, "weight": weight,
                 "score": None, "weighted": None,
                 "note": reason, "needs_human": True,
             }
-            print(f"  D{dim_num:>2} {name:<16} 需人工实测 (权重{weight})")
-            print(f"      └─ {reason}")
-            continue
-
-        if score is None:
-            results[dim_num] = {
-                "name": name, "weight": weight,
-                "score": None, "weighted": None,
-                "note": reason, "needs_human": True,
-            }
-            print(f"  D{dim_num:>2} {name:<16} ⚠ 无法判定 (权重{weight})")
-            print(f"      └─ {reason}")
             continue
 
         weighted = score * weight / 10
         total_weighted += weighted
         total_weight += weight
-
-        results[dim_num] = {
+        entry = {
             "name": name, "weight": weight,
             "score": score, "weighted": round(weighted, 1),
             "note": reason, "needs_human": False,
         }
-        print(f"  D{dim_num:>2} {name:<16} {score}/10 × {weight} = {weighted:.1f}")
-        print(f"      └─ {reason}")
+        if dim_num == 11:
+            entry["coverage_only"] = True
+        results[dim_num] = entry
 
-    # 满分应为 100 - 维度8权重 = 81（维度8占19分需人工补）
-    auto_max = 100 - WEIGHTS[8][1]  # 81
+    manual_max = sum(WEIGHTS[dim][1] for dim in MANUAL_DIMS)
+    auto_max = 100 - manual_max
     quality = output_quality_evidence(md_path, body)
+    red_count, red_hits = scan_runtime_neutrality(body, fm)
+    gate_pass = red_count == 0
+
+    output = {
+        "skill": md_path.name,
+        "skill_type": skill_type,
+        "auto_score": round(total_weighted, 1),
+        "auto_max": auto_max,
+        "manual_weight": manual_max,
+        "manual_dimensions": sorted(MANUAL_DIMS),
+        "dim11_coverage_only": True,
+        "runtime_neutrality": {
+            "red_count": red_count,
+            "gate_pass": gate_pass,
+            "hits": red_hits,
+        },
+        "output_quality_evidence": quality,
+        "dimensions": {str(k): v for k, v in results.items()},
+    }
+
+    if args.json:
+        print(json.dumps(output, ensure_ascii=False, indent=2))
+        sys.exit(0)
+
+    print(f"rubric 评分: {md_path.name}（type={skill_type}）")
     print("=" * 60)
-    print(f"  文档结构分: {total_weighted:.1f} / {auto_max}（不含产出质量；维度8实测表现需人工补 19 分）")
-    print(f"  理论满分: 100.0（维度8满分时 {total_weighted + 19:.1f}）")
+    for dim_num in range(1, 12):
+        name, weight = WEIGHTS[dim_num]
+        entry = results[dim_num]
+        if entry["needs_human"]:
+            print(f"  D{dim_num:>2} {name:<16} 需人工判定 (权重{weight})")
+            print(f"      └─ {entry['note']}")
+            continue
+        print(f"  D{dim_num:>2} {name:<16} {entry['score']}/10 × {weight} = {entry['weighted']:.1f}")
+        print(f"      └─ {entry['note']}")
+
+    print("=" * 60)
+    print(f"  自动结构/材料分: {total_weighted:.1f} / {auto_max}")
+    print(f"  人工分剩余: {manual_max}（D8 实测 19 + D10 品味 6，均不得用关键词替代）")
+    print("  该分数只用于 triage；不是能力分，也不是发布依据。")
     print(
         "  产出质量证据: art-direction "
         + ("✅" if quality["art_direction"] else "✗")
@@ -623,31 +637,9 @@ def main():
     if quality["visual_skill"] and not quality["showcase"]:
         print("      ⚠ 缺 assets/showcase/ 代表作——盲评没有校准锚点")
 
-    # 运行时中立性扫描
-    red_count, red_hits = scan_runtime_neutrality(body, fm)
-    gate_pass = red_count == 0
     print(f"  运行时中立: {'✅ 无红灯' if gate_pass else f'⚠ {red_count} 处疑似红灯（需人工判别假阳性）'}")
     for hit in red_hits[:3]:
         print(f"      └─ {hit}")
-
-    if args.json:
-        output = {
-            "skill": md_path.name,
-            "skill_type": skill_type,
-            "auto_score": round(total_weighted, 1),
-            "auto_max": auto_max,
-            "dim8_needs_human": True,
-            "total_if_dim8_full": round(total_weighted + 19, 1),
-            "runtime_neutrality": {
-                "red_count": red_count,
-                "gate_pass": gate_pass,
-                "hits": red_hits,
-            },
-            "output_quality_evidence": quality,
-            "dimensions": {str(k): v for k, v in results.items()},
-        }
-        print()
-        print(json.dumps(output, ensure_ascii=False, indent=2))
 
     sys.exit(0)
 

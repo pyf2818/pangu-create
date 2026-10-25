@@ -4,6 +4,20 @@
 
 ---
 
+## 运行授权（先于 E0）
+
+| 请求 | 模式 | 允许 | 禁止 |
+|------|------|------|------|
+| 「打分 / 体检 / 诊断 / 看趋势」 | **只读审计** | 读文件；`quality_check.py`、`rubric_score.py`、`analyze_evolution.py`、`verify_skill.py --check`；spawn 独立评审；输出报告 | 创建/修改/删除文件；建分支；写 `results.tsv`；联网；安装依赖；宣称走完 F4/F5 |
+| 「优化 / 升级 / 修一下」 | **可变进化** | 改目标 skill；写测试、账本、回执；改动前落快照 | 未经点名 commit/push/建分支/删文件/改目标外仓库；覆盖未提交改动 |
+| 用户明确说「提交 / 推送 / 发布」 | 提交 | 仅该次、该范围 | force push、跳过 hooks、代用户决定发布 |
+
+只读审计也允许跑 `verify_skill.py --execute` 吗？**默认不允许**（会写 `evidence/verification.json`）；用户明确要求「跑一遍验收/复验回执」时才执行，并先说明会写一个回执文件。`--check` 是纯读，可随时跑。
+
+**共享工作树**：`git status` 显示目标目录之外有未提交改动 → 不建分支、不切分支、不 `stash`、不 `reset --hard`。用 `evidence/snapshots/<timestamp>/` 快照回滚（`evidence/` 被 verify 源码指纹忽略），或在临时目录复制一份 skill 操作。需要提交时先向用户报告脏文件清单，由用户决定。
+
+---
+
 ## 进化契约（必须走上进化）
 
 交付不是终点，是第 0 代。每个出厂 skill 自动进入以下契约：
@@ -20,9 +34,14 @@
 
 ```
 1. 确认优化范围：全部 skills（扫描已安装目录）→ 用户指定列表
-2. git 可用 → 创建分支 auto-evolve/YYYYMMDD-HHMM
-   git 不可用 → 询问用户：init 还是文件备份模式（cp SKILL.md SKILL.md.bak.YYYYMMDD-HHMM）
-3. results.tsv 不存在 → 创建并写表头（见下）；已存在 → 读取历史优化记录
+2. 先判授权：只读审计 → 跳过 E0/E2，只跑 E1 的只读部分并出报告，不写任何文件
+   可变进化 → 继续
+3. 读 git status：
+   - 目标目录之外有未提交改动（共享工作树）→ 不建/不切分支、不 stash；
+     快照到 evidence/snapshots/YYYYMMDD-HHMM/，后续回滚只用快照
+   - 工作树干净且用户明确授权提交 → 可建分支 auto-evolve/YYYYMMDD-HHMM
+   - 无 git → 询问用户：init 还是快照模式（禁止用裸文件覆盖当回滚）
+4. results.tsv 不存在 → 创建并写表头（仅可变模式）；已存在 → 读取历史优化记录
 ```
 
 results.tsv 格式（10 列，制表符分隔）：
@@ -53,16 +72,20 @@ timestamp	commit	skill	old_score	new_score	status	dimension	note	eval_mode	evide
 
 ```
 for each skill:
-  1. 读取 SKILL.md 全文，按 rubric（见 rubric.md）维度 1-7、9、10 逐项打分（附理由）
+  1. 读取 SKILL.md 全文，按 rubric（见 rubric.md）维度 1-7、9、11 自动打分（附理由）；
+     维度 8（实测 19 分）与维度 10（品味 6 分）必须人工判断，不计入自动上限 75
+  1.5 `python3 scripts/rubric_score.py <SKILL.md> --json` 输出纯 JSON；自动分只作 triage
   2. 运行时中立性红灯扫描（gate 项，扫描命令与假阳性判别见 rubric.md 末节）
-  2.5 **可执行交付闸门（gate 项，rubric.md「可执行交付闸门」）**：跑 `python3 scripts/verify_skill.py <skill目录>`；G1 承诺矩阵 / G2 故障注入 / G3 交付证据任一 FAIL → 本轮第一优先级修闸门，修好前不做任何评分或 keep
+  2.5 **可执行交付闸门（gate 项，rubric.md「可执行交付闸门」）**：先跑
+     `python3 scripts/verify_skill.py <skill目录> --type <output|text> --check` 核验新鲜回执；
+     缺清单/回执或过期 → 用 `--execute` 重跑；任一 FAIL → 本轮第一优先级修闸门，修好前不做任何评分或 keep
   3. 效果维度（维度 8）：每个测试题 spawn 子 agent——
      with_skill：带着 SKILL.md 执行
      baseline：不带 skill 执行（必须真实跑，不许猜「无 skill 大概会怎样」）
      对比输出质量打分
      产出型 skill 额外跑产出质量门（参照物/工艺参数/盲评/反模板/三秒，见 testing.md §9 与 output-quality.md）
   4. 子 agent 不可用 → 干跑验证打分，标 dry_run（判定规则见 testing.md §8：full_test ≥1 次且 dry_run 数 < full_test 数，否则评估失效警告）；同上下文自评必须标 self_eval，不得 keep
-  5. 计算加权总分，记入 results.tsv
+  5. 计算加权总分。只读审计 → 只写进报告；可变进化 → 记入 results.tsv
 ```
 
 评估完成后展示评分卡（按分数升序，标注每支的结构短板与效果短板）。
@@ -90,10 +113,15 @@ for each skill（按基线分升序，先修最弱的）:
     #   ⚔ 钢人反对（思维工具）：写完方案先构造「最强反对」——为什么这会变差/为什么没必要；
     #     反对成立 → 方案重写，不带着自我怀疑上 commit
 
-    # Step 3 执行 + git commit（message: "evolve {skill}: {改进摘要}"）
+    # Step 3 执行：
+    #   - 有提交授权且工作树干净 → git commit（message: "evolve {skill}: {改进摘要}"）
+    #   - 无提交授权或共享工作树脏 → 不 commit、不 stash；本轮改动前已落快照，
+    #     在 results.tsv 的 evidence 记快照路径
+    #   - 不得为了让流程继续而 reset/checkout 他人改动
 
     # Step 4 paired 重评：spawn N=3 个独立 judge（close call 升 5，N 保持奇数），
-    #   每个 judge 在【同一次调用内】读改前版（git show HEAD~1:<path>）与改后版，
+    #   每个 judge 在【同一次调用内】读改前版（有提交：git show HEAD~1:<path>；
+    #   无提交：evidence/snapshots/<时间>/ 的副本）与改后版，
     #   以 rubric 为比较准则（不是各打绝对分），回 {better|worse|tie} + margin{clear|slight} + 一句理由。
     #   产出型 skill：judge 读的是两版各自生成的成品，SKILL.md 只作背景；无独立 judge → self_eval 不得 keep
     #   同一 judge 同次读两版 → 它那把不准的尺对两版等量作用、在比较中抵销
@@ -103,15 +131,19 @@ for each skill（按基线分升序，先修最弱的）:
     #     keep 后按 E1 规则重算一次加权总分（triage 展示用，非权威）
     #     连续 2 轮多数为 slight 或 tie → 触顶，break 进 E3（见好就收；
     #     硬凑轮数只会引入「为凑分加冗余」的 over-engineering）
-    #   worse 占多 → revert：git revert HEAD（绝不 reset --hard），results.tsv 记录票比与理由，
-    #     break（本轮方向已证伪，换维度下轮再说）
+    #   worse 占多 → revert：
+    #     - 有提交且该 commit 只含本轮改动 → git revert HEAD（绝不 reset --hard）
+    #     - 无提交/共享工作树 → 从本轮快照恢复被改文件；先展示 diff，确认只覆盖本轮文件
+    #     - 回滚失败（冲突/别人也改了同文件）→ 停止，报告冲突文件，交给用户处理；
+    #       绝不「从上个 commit 读出文件覆盖」——那会吞掉未提交工作
+    #     results.tsv 记录票比、理由与回滚方式，break（本轮方向已证伪，换维度下轮再说）
     #   单评绝对分出现负 delta ≠ revert 信号；必须 paired 多数判 worse 才 revert
 
-    # Step 6 results.tsv 追加记录
+    # Step 6 results.tsv 追加记录（只读审计模式不写）
 
   # 🔴 CHECKPOINT · 该 skill 优化完强制人审：
-  #   展示 git diff + 维度分变化 + 测试题输出对比（若跑过）
-  #   用户说不好 → 回滚到优化前版本
+  #   展示 diff（有提交：git diff；无提交：快照对比）+ 维度分变化 + 测试题输出对比（若跑过）
+  #   用户说不好 → 用同一快照回滚到优化前版本
 ```
 
 ### E2.5 探索性重写（按需触发）
@@ -122,10 +154,11 @@ for each skill（按基线分升序，先修最弱的）:
 0. 侦察找灵感：先做一轮同类技能侦察（forge.md F1.0，可只精读结构不写完整吸收表），
    看同类/相邻 skill 怎么组织结构与表达——局部最优常常是「没见过别的长法」
 1. 选一个瓶颈 skill
-2. git stash 保存当前最优版本
+2. 用 evidence/snapshots/YYYYMMDD-HHMM/ 复制当前最优版本（禁止裸 git stash / stash pop——
+   共享工作树里 pop 可能把别人的改动一起弹出来）
 3. 从头重写 SKILL.md（重组结构与表达，不是微调）
-4. paired 重评
-5. 重写版更好 → 采用；否则 git stash pop 恢复
+4. paired 重评（快照 vs 重写版）
+5. 重写版更好 → 采用；否则从快照恢复，并记录恢复来源
 ```
 
 **🔴 CHECKPOINT · 🛑 STOP：必须征得用户同意后才执行。**
@@ -145,12 +178,15 @@ for each skill（按基线分升序，先修最弱的）:
 
 ```
 ## 进化报告
+- 模式：只读审计 / 可变进化（只读报告不写 results.tsv）
 - 优化 skill 数 / 总实验次数 / 保留改进数（比例）/ 回滚次数
 - 实测验证：A 次完整测试 / B 次干跑
 - triage 分数变化表（Before / After / Δ；数值来自基线与各轮 keep 后的 triage 重算，
-  仅展示趋势用——keep/revert 的权威依据始终是 paired 票比，Δ 保留 1 位小数）
+  仅展示趋势用——keep/revert 的权威依据始终是 paired 票比，Δ 保留 1 位小数；
+  自动分满分 75，D8/D10 人工分单列）
 - paired 记录表（每轮：维度 / 票比 / margin / 一句裁断理由）
 - 主要改进列表（每条对应 skill + 改了什么 + 实测变化）
+- 闸门状态：quality_check（结构）/ verify_skill --check（行为回执）分开列，不得合并成「全绿」
 - 运行时中立度：红灯命中数 X → 0
 ```
 
@@ -164,14 +200,15 @@ for each skill（按基线分升序，先修最弱的）:
 | results.tsv 缺失 | 文件不存在 | 新建并写表头 |
 | results.tsv 损坏 | 列数不匹配 / 非 TSV | 备份为 `.bak.时间戳` 后重建，告知用户 |
 | 分支已存在 | `checkout -b` 失败 | 分支名加 `-2`/`-3`；第 3 次失败切回现有分支问用户 |
-| `git revert` 失败 | 冲突 / 工作树脏 | 先 stash 重试；仍失败从上个 commit 读出 SKILL.md 覆盖恢复 |
+| 共享工作树脏 | 目标目录之外有未提交改动 | 不建/不切分支、不 stash；用 `evidence/snapshots/` 快照 + 临时副本操作；提交前把脏文件清单交用户决定 |
+| `git revert` 失败 | 冲突 / 工作树脏 / 同文件被他人改动 | 停止并报告冲突文件；只从**本轮快照**恢复本轮改过的文件，确认 diff 后执行；绝不从旧 commit 覆盖整个 SKILL.md |
 | MAX_ROUNDS 触顶 | 3 轮后仍有短板 | 不强制继续，展示最弱维度问用户「加 1 轮 / 探索性重写 / 收工」 |
 | 体积超限 | 新文件 > 原 × 1.5 | 拒绝提交，先精简再评 |
 | test-prompts.json 已存在 | 文件已在 | 展示后问「复用 / 重写 / 追加」 |
 | SKILL.md 缺失 | 目录存在但无文件 | 该 skill 记 `status=error`，继续下一个 |
 | 浮点漂移 | 分数计算 | 总分保留 1 位小数；改进须严格 > 旧分 |
 | 测试环境抖动 | CDN 偶发失败 / 端口被占 / 浏览器缺失 | 重试 ≤3 次；仍失败 → `status=env_error`，**不计 worse、不触发进化**，记录证据后另找环境复测 |
-| 阈值贴边 | 实测与阈值差距 <1.5× | 不判通过：先降负载或改设计；不许下调阈值/放宽上限来「通过」 |
+| 阈值贴边 | 实测 < 阈值×1.5，且 3 次采样中位数或最小值 < 阈值 | 不判通过：先降负载或改设计；不许下调阈值/放宽上限来「通过」 |
 | 定位变更 | 用户纠正了 skill 的定位（做什么/不做什么） | 走下方「定位变更五件套审计」，五件不齐不许提交 |
 
 ## 进化操作反例黑名单（每轮改动前对照一次，任一命中 → 改方案重写）
@@ -180,7 +217,7 @@ for each skill（按基线分升序，先修最弱的）:
 |---|--------|--------|---------|
 | 1 | 同上下文自评自改 | 「我刚改的肯定更好」乐观偏差；LLM-as-judge 对细粒度差异接近抛硬币 | 独立子 agent + paired 奇数多数决 |
 | 2 | 绝对分数 delta 当棘轮 | judge 换尺噪音 ±8，会误杀真实增益或保留假改进 | 绝对分只做 triage；keep/revert 走 paired |
-| 3 | `git reset --hard` 回滚 | 丢未提交改动、历史断裂 | `git revert` |
+| 3 | `git reset --hard` / 裸 `git stash` 回滚 | 前者丢未提交改动、历史断裂；后者在共享工作树会连别人的改动静默收走 | `git revert`（有授权且 commit 只含本轮）或 `evidence/snapshots/` 定向恢复 |
 | 4 | 为凑分增冗余 | 触顶后硬改 = 加废话 | 触顶 break，见好就收 |
 | 5 | 跳过测试题直接评分 | 效果维度凭空打分 | E0.5 强制设计并确认 |
 | 6 | 轮内改多维度 | 无法归因 | 每轮 1 维；相关簇例外（同步改但要注明） |
@@ -189,8 +226,9 @@ for each skill（按基线分升序，先修最弱的）:
 | 9 | 静默跳过异常 | 破坏棘轮完整性 | 异常表逐条，先告知再处理 |
 | 10 | 只改文档不改闸门 | 「已验证」是自述，不是证据；下轮同坑必复发 | 每个踩坑同时补一条机器断言（`--expect-fail`） |
 | 11 | 环境故障当产品缺陷修 | 把网络抖动当规律，改坏本来正确的实现 | `status=env_error` 分流，重试后再判 |
-| 12 | 改阈值/放宽上限过闸 | 闸门变成橡皮图章 | 实测 ≥ 阈值×1.5 或 3 次中位数达标；不够就减负载 |
+| 12 | 改阈值/放宽上限过闸 | 闸门变成橡皮图章 | 实测 ≥ 阈值×1.5，或 3 次采样中位数与最小值均 ≥ 阈值；不够就减负载 |
 | 13 | 定位变更只改 SKILL.md | 范例/模板/触发词/README 仍在旧定位，用户拿到错东西 | 走定位变更五件套审计 |
+| 14 | 只读体检顺手写账本/建分支/联网 | 用户只要报告，却留下状态变更；在多 agent 仓库里尤其危险 | 只读审计零写入；要修先取得可变授权 |
 
 ## E4 代表作回流（实战后必做）
 

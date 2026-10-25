@@ -67,21 +67,50 @@ DESIGN_THESIS_STUB = """# 设计论点：TODO <North Star 名字>
 
 PROMISE_TABLE_STUB = """# 承诺→断言矩阵
 
-> F2 收尾必填（产出型与工具型适用）。规则见 pangu-create/references/executable-checklist.md §1。
+> F2 收尾必填。规则见 pangu-create/references/executable-checklist.md §1。
 >
 > **格式契约（verify_skill.py gate_promise 按此解析）**：
-> ① 每行 ≥4 列，第 4 列必须是证据（非空/非 -/非 TODO：日志路径、截图文件名或实测数值）；
-> ② 命令列用反引号包命令，且含 python/node/npm/npx/bash/sh/curl/playwright/pytest/verify/finalize 关键词之一；
-> ③ 全表禁软化词（视情况/视具体/大致/大概/尽量/随便/看情况）；
-> ④ 行数 ≥3；做不到就删承诺，不许留空话。
-> 每一行 = 一句对用户的承诺 + 一条能跑的命令 + 一份能指认的证据。
+> ① 每行 4 列：承诺 | 可执行断言 | 测试 ID | 证据指针；
+> ② 第三列必须是 tests/verification.json 里的 suite id（不是命令文本）；
+> ③ 第四列必须是 `evidence/verification.json#<同一个 id>`；
+> ④ 行数 ≥3；**本表填完还不够，必须用 --execute 真实跑出回执**。
+> 占位词（待填写/TODO/自述式结论）会被闸门拒绝——这是故意的。
 
-| 承诺（用户视角原话） | 可执行断言 | 命令 | 证据 | 状态 |
-|---|---|---|---|---|
-| TODO: 「打开就能看」 | TODO: canvas 有像素、0 console error | `python3 scripts/verify.py <产物>` | TODO: logs/xxx.log 或截图 | ⬜ |
-| TODO: 「断网也能用」 | TODO: 8 秒内出现降级提示 | `python3 tests/failure_injection.py --offline` | TODO: 降级截图 | ⬜ |
-| TODO: 「性能达标」 | TODO: headless ≥30 FPS | `python3 scripts/verify.py --headless <产物>` | TODO: 实测数值 | ⬜ |
+| 承诺（用户视角原话） | 可执行断言 | 测试 ID | 证据 |
+|---|---|---|---|
+| （待填写）打开就能用 | （待填写）具体断言 + 数字阈值 | behavior-placeholder | evidence/verification.json#behavior-placeholder |
+| （待填写）异常输入有可见降级 | （待填写）注入后断言用户可见文案 | failure-injection | evidence/verification.json#failure-injection |
+| （待填写）结果可复现 | （待填写）重复执行哈希一致 | behavior-placeholder | evidence/verification.json#behavior-placeholder |
 """
+
+VERIFICATION_STUB = {
+    "version": 1,
+    "suites": [
+        {
+            "id": "behavior-placeholder",
+            "kind": "behavior",
+            "command": ["python", "tests/test_placeholder.py"],
+            "timeout_seconds": 60,
+            "expect": {"exit_code": 0, "stdout_regex": "OK"},
+        },
+        {
+            "id": "failure-injection",
+            "kind": "failure_injection",
+            "categories": ["dependency_unavailable", "extreme_input"],
+            "command": ["python", "tests/failure_injection.py", "--offline", "--empty"],
+            "timeout_seconds": 60,
+            "expect": {"exit_code": 0, "stdout_regex": "PASS"},
+        },
+    ],
+}
+
+PLACEHOLDER_TEST = '''#!/usr/bin/env python3
+"""占位测试：故意失败。实现真实断言后替换本文件，别改 manifest 期望值来变绿。"""
+import sys
+
+print("NOT_IMPLEMENTED: 还没有可执行断言", file=sys.stderr)
+sys.exit(1)
+'''
 
 FAILURE_INJECTION_SKELETON = '''#!/usr/bin/env python3
 """
@@ -269,6 +298,16 @@ def main() -> None:
         args.force,
     ))
     print(write_if_absent(
+        root / "tests" / "test_placeholder.py",
+        PLACEHOLDER_TEST,
+        args.force,
+    ))
+    print(write_if_absent(
+        root / "tests" / "verification.json",
+        json.dumps(VERIFICATION_STUB, ensure_ascii=False, indent=2) + "\n",
+        args.force,
+    ))
+    print(write_if_absent(
         root / "test-prompts.json",
         json.dumps(TEST_PROMPTS_TEMPLATE, ensure_ascii=False, indent=2) + "\n",
         args.force,
@@ -297,11 +336,13 @@ def main() -> None:
     print("  [ ] scripts/ 核心变换脚本化 + 一键 verify/finalize")
     print()
     print("⚠️  可执行预检（F3.6，不过不进 F4）：")
-    print("  [ ] references/promise-table.md ≥3 行，每行有断言 + 命令 + 证据")
-    print("  [ ] tests/failure_injection.py 改写成真实注入（≥2 类：依赖不可达 / 极端输入 / 环境缺失 / 工具自伤）")
+    print("  [ ] references/promise-table.md ≥3 行：承诺 | 断言 | 测试 ID | evidence/verification.json#ID")
+    print("  [ ] tests/verification.json 的测试命令替换占位实现（占位测试故意失败，别改期望值变绿）")
+    print("  [ ] tests/failure_injection.py 真实注入 ≥2 类（依赖不可达 / 极端输入 / 环境缺失 / 工具自伤）")
     print("  [ ] 降级提示在用户可见 DOM（看门狗写在 module 之外）")
-    print("  [ ] 量化阈值留 1.5× 余量，或 3 次取中位数")
-    print("  [ ] python3 scripts/verify_skill.py <本目录> 全过")
+    print("  [ ] 量化阈值留余量：单次 ≥1.5×，或 3 次采样中位数与最小值均 ≥ 阈值")
+    print("  [ ] python3 scripts/verify_skill.py <本目录> --execute 通过并产出 evidence/verification.json")
+    print("  [ ] python3 scripts/verify_skill.py <本目录> --check 复验回执（源码变了会判过期）")
     print()
     print("⚠️  交付后（E4/E5 回流）：")
     print("  [ ] 领域工艺参数回填 pangu-create/references/craft-atlas.md（无节则按注册格式开新节）")

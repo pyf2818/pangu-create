@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "suites": [
+    {
+      "id": "tools-regression",
+      "kind": "behavior",
+      "command": ["python", "tests/test_tools_regression.py"],
+      "timeout_seconds": 120,
+      "expect": {
+        "exit_code": 0,
+        "stderr_regex": "Ran [1-9][0-9]* tests?[\\s\\S]*\\nOK\\n?$"
+      }
+    },
+    {
+      "id": "failure-injection",
+      "kind": "failure_injection",
+      "categories": ["extreme_input", "invalid_evidence"],
+      "command": ["python", "tests/test_gate_adversarial.py"],
+      "timeout_seconds": 120,
+      "expect": {
+        "exit_code": 0,
+        "stdout_regex": "FAILURE_INJECTION [1-9][0-9]* PASS"
+      }
+    },
+    {
+      "id": "scaffold-contract",
+      "kind": "behavior",
+      "command": ["python", "tests/test_scaffold.py"],
+      "timeout_seconds": 120,
+      "expect": {
+        "exit_code": 0,
+        "stderr_regex": "Ran [1-9][0-9]* tests?[\\s\\S]*\\nOK\\n?$"
+      }
+    }
+  ]
+}

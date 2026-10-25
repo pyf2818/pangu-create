@@ -2,13 +2,13 @@
 
 > 依据：LLM-as-judge 直接两两选优的准确率仅约 46%（接近抛硬币）；加入「失败分支编码、指令具体性、反例黑名单」三个元维度后提升到约 74%。本 rubric 在此基础上扩充「品味与排他性」维度并重配权重。rubric 能可靠识别粗粒度质量差异，但细粒度差异仍不可信——**重要决策必须人审**。
 >
-> **本 rubric 量的是 SKILL.md 的文档质量，不是产出质量**。自动评分只能叫「文档结构分」；产出型 skill 的「作品分」必须另走产出质量三关（[output-quality.md](output-quality.md)）。实证：threejs-web 自动评分 81/81，成品仍被判「一般」——高分文档不等于好看的作品。
+> **本 rubric 量的是 SKILL.md 的文档质量，不是产出质量**。自动评分只能叫「文档结构分」；产出型 skill 的「作品分」必须另走产出质量三关（[output-quality.md](output-quality.md)）。实证：threejs-web 旧版自动口径 81/81（当时含 D10 关键词打分，v1.3 起已废弃），成品仍被判「一般」——高分文档不等于好看的作品。
 
 ## 使用方式
 
-- 维度 1-7、9-11（结构/元/品味/洞察维度）：静态分析，每维打 1-10 分 × 权重
-- 维度 8（实测表现）：跑测试题实测打分，权重最大——这是「结构合规」与「真的好用」的区别
-- 总分 = Σ(维度分 × 权重) / 10，满分恰为 100，保留 1 位小数
+- 维度 1-7、9、11（结构/元/洞察维度）：静态分析，每维打 1-10 分 × 权重；自动上限 **75 分**
+- 维度 8（实测表现 19 分）：必须跑测试题实测；维度 10（品味 6 分）：必须人工盲判——两者都不进自动分
+- 总分 = Σ(维度分 × 权重) / 10，满分恰为 100，保留 1 位小数；报告必须分开写「自动 75 分制」与「人工 25 分」
 - **绝对总分只用于 triage（哪支最弱、先改谁）**；keep/revert 一律走 paired 同-judge 比较（见 evolve.md）
 - **分型评分**（`rubric_score.py --type auto|output|text`，与 verify_skill.py 同一口径）：产出型 = 有 examples/showcase 范例资产或无元技能特征；文本/元技能型 = 无范例资产 + 正文含元技能特征（元技能的范例是它锻造出的下游 skill，不在自身目录）。D6/D11 判据随类型切换，auto 范例资产优先——防止把元技能的「模板路径」误判为自身失效引用（实证：pangu-create 自评曾 D6=4/D11=5 假阴性，分型后 10/10）
 
@@ -113,16 +113,16 @@ grep -nE "(在 Claude Code|Claude Code skill|Claude Code 用户|Cursor only|Code
 
 | # | 闸门 | 判据 | 机器检查 |
 |---|------|------|---------|
-| G1 | **承诺→断言矩阵** | `references/promise-table.md` 存在，≥3 行；每行有「可执行断言 + 可复制命令 + 可指认证据」；无空命令行（「视情况」「大致」）；交付摘要贴最新执行结果 | `verify_skill.py` → `gate_promise` |
-| G2 | **故障注入** | 存在注入脚本（`tests/failure_injection.py`）或验收脚本的 `--expect-fail` / `expect_fail` 模式；覆盖 ≥2 类注入（依赖不可达 / 极端输入 / 环境缺失 / 工具自伤）；降级提示出现在用户可见 DOM，不只 console | `verify_skill.py` → `gate_failure_injection` |
-| G3 | **环境分流与阈值余量** | 验收工具退出码三态：0 通过 / 1 产品缺陷 / 2 环境故障；环境故障（网络抖动、端口被占、浏览器缺失）单独归类，不计入 worse；量化阈值满足实测 ≥ 阈值×1.5 或 3 次中位数达标 | 人工复核 + `results.tsv` 的 `evidence` 列 |
+| G1 | **承诺→断言矩阵** | `references/promise-table.md` 存在，≥3 行；每行第三列是 `tests/verification.json` 的测试 ID，第四列指向 `evidence/verification.json#同一 ID`；无占位/自述性证据 | `verify_skill.py` → `gate_promise` |
+| G2 | **故障注入** | `tests/verification.json` 至少一个 `failure_injection` suite，声明并真实执行 ≥2 类注入（依赖不可达 / 极端输入 / 环境缺失 / 工具自伤）；降级提示出现在用户可见 DOM，不只 console | `verify_skill.py` → `load_contract` / `gate_contract` / `--execute` |
+| G3 | **环境分流、阈值余量与新鲜回执** | 验收工具退出码三态：0 通过 / 1 产品缺陷 / 2 环境故障；环境故障不计入 worse；阈值满足单次 ≥1.5× 或 3 次采样中位数与最小值均达标；`--execute` 的回执对当前源码/清单仍然新鲜 | 人工复核 + `verify_skill.py --check` + `results.tsv` 的 `evidence` 列 |
 
 **G1 绿灯写法**（反例/正例对照见 [executable-checklist.md](executable-checklist.md) §3）：
 
 ```markdown
-| 承诺 | 可执行断言 | 命令 | 证据 | 状态 |
-|---|---|---|---|---|
-| 打开即可看 | canvas 有像素、0 console error | `python3 scripts/verify.py examples/01.html` | `logs/01.log` | ✅ 2026-10-21 |
+| 承诺 | 可执行断言 | 测试 ID | 证据 |
+|---|---|---|---|
+| 打开即可看 | canvas 有像素、0 console error | scene-open | evidence/verification.json#scene-open |
 ```
 
 **判定纪律**：

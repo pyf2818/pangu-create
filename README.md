@@ -9,7 +9,7 @@
 
 *A meta-skill that forges any domain into a verifiable, evolvable Agent Skill.*
 
-[![version](https://img.shields.io/badge/version-1.2.0-C8955A?style=flat-square)](https://github.com/pyf2818/pangu-create/releases)
+[![version](https://img.shields.io/badge/version-1.3.0-C8955A?style=flat-square)](https://github.com/pyf2818/pangu-create/releases)
 [![license](https://img.shields.io/badge/license-MIT-3B82F6?style=flat-square)](LICENSE)
 [![python](https://img.shields.io/badge/python-3.9%2B-3776AB?style=flat-square)](scripts)
 [![Agent Skill](https://img.shields.io/badge/Agent%20Skill-compatible-8B5CF6?style=flat-square)](#快速开始)
@@ -109,7 +109,7 @@ flowchart LR
 
 **锻造（Forge）**：从零创建。第一阶段先想清楚（意图显影 → 七要素简报 → 隐性五问 → MVP/增强项），再侦察学习，沿 F1-F5 往下走。
 
-**进化（Evolve）**：把已有 skill 磨强。E0 建分支与账本 → E0.5 测试题 → E1 基线 → E2 单维改动 + 3 judge paired 多数决 → E3 报告 → E4 代表作回流。
+**进化（Evolve）**：把已有 skill 磨强。E0 先判授权并读工作树状态（默认落快照，不擅自建分支/提交）→ E0.5 测试题 → E1 基线 → E2 单维改动 + 3 judge paired 多数决 → E3 报告 → E4 代表作回流。
 
 **新陈代谢（E5）**：盘古自身的进化。模型自评 / 机器信号 / 用户反馈三源触发，四问——哪步最绕、哪个坑没拦住、哪个手法值得沉淀进 craft-atlas、哪条规则该淘汰（动态判断，该删才删，删留都记判据）。像生物：同化 + 排异，反馈不只来自用户——模型必须自己产生反馈。
 
@@ -136,10 +136,10 @@ cp -r pangu-create ~/.trae-cn/skills/      # TRAE
 
 ```bash
 python pangu-create/scripts/quality_check.py pangu-create/SKILL.md
-# 结果: 11/11 通过
+# 结果: 11/11 通过（结构自检，不等于行为验收）
 
 python pangu-create/scripts/rubric_score.py pangu-create/SKILL.md
-# 文档结构分 81/81（type=text 自动探测；不含维度 8「实测表现」的 19 分，需人工跑测试题）
+# 自动文档结构分，满分 75（type=text 自动探测；D8 实测 19 分 + D10 品味 6 分必须人工，不得用关键词替代）
 ```
 
 安装完成后，直接对 Agent 说：
@@ -160,8 +160,11 @@ python pangu-create/scripts/rubric_score.py pangu-create/SKILL.md
 | 「把我们刚才这个过程做成 skill」 | 锻造·快速蒸馏：参照物信息密度高时跳过同类侦察，直接从脚本 / 对话 / 文档提炼内核（不省验证） |
 | 「我想要一个能提升 XX 的技能」 | 需求诊断：先扫描已装 skill，最多追问 2 轮，给出 ≤3 个候选 |
 | 「我觉得 XX 领域缺一个 skill」 | 市场验证 + 空白地图：4 指标热度扫描 → 覆盖图 → 让你选成熟方向或创新方向 |
-| 「优化这个 skill」 / 「给它打分」 | 进化管线：11 维基线 → 单维改进 + paired 多数决棘轮 → 触顶收工 |
-| 「skill 体检」 | 只跑静态自检 + rubric 评分，不改文件 |
+| 「优化这个 skill」 / 「升级它」 | 可变进化：先确认写入授权 → 基线 → 单维改进 + paired 多数决棘轮 → 触顶收工；默认不 commit/push |
+| 「给它打分」 | **只读审计**：自动结构分（75 分制）+ 独立评审 + 回执状态，出报告 |
+| 「skill 体检」 / 「看看进化趋势」 | **只读审计**：静态自检 + rubric + 趋势分析，**不写文件、不建分支、不记账、不联网** |
+
+三类请求的写入权限不同：**只读审计零写入**；**可变进化**只改目标 skill 并落快照；**commit / push / 发布**必须由你明确点名。共享工作树里有其他未提交改动时，不会建分支、不会 `git stash`，只用 `evidence/snapshots/` 定向回滚。
 
 交互模式下，每个 🔴 CHECKPOINT 都是**阻塞闸门**：先展示阶段成果，再给 2-4 个具体选择题，等你回应才继续。你可以随时说「自动跑完别问」，此时所有默认决策会逐条记入 `results.tsv`。
 
@@ -177,7 +180,7 @@ my-skill/
 ├── README.md                     # 人类入口：3 步上手 + 示例 + 同类对比 + 局限
 ├── references/
 │   ├── design-thesis.md           # 设计论点 + 竞争测试 + 8-12 条独有素材
-│   ├── promise-table.md           # 承诺→断言矩阵：承诺 / 断言 / 命令 / 证据 / 状态
+│   ├── promise-table.md           # 承诺→断言矩阵：承诺 / 断言 / 测试 ID / 回执指针
 │   ├── kernel.md                 # 铁律层 / 模型层 / 品味层
 │   ├── art-direction.md          # 产出型：从顶级成品拆出的参数级标杆
 │   ├── parameter-cards.md        # 产出型：≥8 项可量化工艺参数
@@ -186,12 +189,17 @@ my-skill/
 ├── examples/                     # ≥3 件可打开 / 可运行的范例
 ├── assets/showcase/              # 1 件手写署名作品
 ├── scripts/                      # 确定性核心：verify / finalize / check
-├── tests/failure_injection.py    # 故障注入：断网 / 空数据 / 环境缺失，≥2 类
+├── tests/
+│   ├── verification.json         # 行为/故障注入清单（无 shell 命令数组）
+│   └── failure_injection.py      # 故障注入实现，≥2 类
+├── evidence/
+│   ├── verification.json         # --execute 生成的新鲜回执（源码/清单双哈希）
+│   └── snapshots/                # 可变进化前的可回滚快照
 ├── test-prompts.json             # happy_path / complex / failure 三类测试题
 └── results.tsv                   # 进化账本（10 列，含 evidence 证据列）
 ```
 
-交付前，`scripts/verify_skill.py <dir> --type output` 会检查：论点档案、范例数量、署名作品、一键验收脚本、承诺矩阵、故障注入、交付证据。任一缺失直接 `exit 1`，不许进入 F4/F5。
+交付前，`scripts/verify_skill.py <dir> --type output --execute` 会真实执行 `tests/verification.json` 的测试并生成回执；再用 `--check` 复核回执未过期。结构闸门检查论点档案、范例数量、署名作品、承诺→测试 ID 绑定、注入类别；任一缺失直接 `exit 1`，不许进入 F4/F5。**默认结构模式只做预检，不是发布认证。**
 
 ---
 
@@ -212,7 +220,7 @@ my-skill/
 
 ### 11 维 rubric
 
-文档结构 100 分：1-7、9-11 可脚本自动算（81 分），维度 8「实测表现」19 分必须人工跑测试题。自动评分高 ≠ 真的好用。
+总分 100：维度 1-7、9、11 可脚本自动算（**75 分**）；维度 8「实测表现」19 分必须人工跑测试题，维度 10「品味与排他性」6 分必须人工盲判。`--json` 输出纯 JSON。自动评分高 ≠ 真的好用。
 
 ```bash
 python scripts/rubric_score.py my-skill/SKILL.md
@@ -237,9 +245,14 @@ python scripts/rubric_score.py my-skill/SKILL.md
 ### 可执行闸门
 
 ```bash
-python scripts/verify_skill.py my-skill --type output
-# PASS 设计论点 / 范例集 / 署名作品 / 确定性核心 —— 任一 FAIL 即 exit 1
+python scripts/verify_skill.py my-skill --type output --execute
+# 真实执行 tests/verification.json：行为 + 故障注入 suite，生成 evidence/verification.json
+
+python scripts/verify_skill.py my-skill --type output --check
+# 只读复核回执：源码或清单变化即判过期，不跑任何测试
 ```
+
+结构闸门（论点 / 范例 / 署名作品 / 承诺→测试 ID 绑定）任一 FAIL 即 `exit 1`；行为闸门以新鲜回执为准。**两层的结论不得互相替代。**
 
 ---
 
@@ -249,13 +262,13 @@ python scripts/verify_skill.py my-skill --type output
 
 | 脚本 | 用途 | 用法 |
 |---|---|---|
-| `scaffold.py` | 生成目标 skill 骨架 + 立项检查单 | `python scripts/scaffold.py my-skill --name my-skill` |
-| `quality_check.py` | 静态 11 项自检（frontmatter / 失败分支 / 检查点 / 软化措辞 / 自包含…） | `python scripts/quality_check.py my-skill/SKILL.md` |
-| `rubric_score.py` | 11 维 rubric 自动评分（维度 1-7/9-11） | `python scripts/rubric_score.py my-skill/SKILL.md` |
-| `verify_skill.py` | 产出型出厂闸门（论点 / 范例 / 署名作品 / 确定性核心 / 承诺矩阵 / 故障注入 / 交付证据） | `python scripts/verify_skill.py my-skill --type output` |
-| `analyze_evolution.py` | 进化趋势（worse 分布 / 高频维度 / 改进建议） | `python scripts/analyze_evolution.py my-skill/results.tsv` |
+| `scaffold.py` | 生成目标 skill 骨架（含故意失败的占位测试与行为清单） | `python scripts/scaffold.py my-skill --name my-skill` |
+| `quality_check.py` | 静态 11 项自检（frontmatter / 失败分支 / 检查点 / 软化措辞 / 自包含…）；**结构证据** | `python scripts/quality_check.py my-skill/SKILL.md` |
+| `rubric_score.py` | 11 维 rubric 自动评分（1-7/9/11，满分 75；D8/D10 人工） | `python scripts/rubric_score.py my-skill/SKILL.md --json` |
+| `verify_skill.py` | 结构预检 / 行为执行 / 回执核验（`--execute` / `--check`） | `python scripts/verify_skill.py my-skill --type output --execute` |
+| `analyze_evolution.py` | 进化趋势 + 数据质量警告（缺少 full_test / 无表头 / 短行） | `python scripts/analyze_evolution.py my-skill/results.tsv` |
 
-`--json` 可用于 CI 或自动化流水线。
+`rubric_score.py --json` 输出纯 JSON；`verify_skill.py --json` 输出机器可读结果，均可用于 CI。CI 中若只跑默认结构模式，结论只能写「结构预检通过」。
 
 ---
 
@@ -264,8 +277,8 @@ python scripts/verify_skill.py my-skill --type output
 交付只是第 0 代。每次真实使用都产生一条记录：
 
 ```
-timestamp        commit  skill  old_score  new_score  status  dimension  note  eval_mode
-2026-10-21T10:00 -       my-skill  4/7      6/7      keep    观感      光比与接触锚点修复  independent-blind-ab
+timestamp        commit  skill  old_score  new_score  status  dimension  note  eval_mode  evidence
+2026-10-21T10:00 -       my-skill  4/7      6/7      keep    观感      光比与接触锚点修复  independent-blind-ab  logs/verify-20261021.log exit=0
 ```
 
 - **keep / revert 只信 paired 多数决**：同一 judge 同次读两版比较，3 个 judge 奇数投票；绝对分只做 triage
@@ -284,10 +297,12 @@ python scripts/analyze_evolution.py my-skill/results.tsv
 
 ```
 pangu-create/
-├── SKILL.md                    # 主编排：入口分流、双管线、检查点、15 条铁律、28 条反模式
+├── SKILL.md                    # 主编排：入口分流、授权边界、双管线、检查点、16 条铁律、30 条反模式
 ├── README.md                   # 你正在读的文件
 ├── README.en.md                # English overview（英文速览）
 ├── assets/banner.svg           # 视觉标识
+├── tests/                      # 自身行为测试清单 + 回归/对抗/脚手架测试
+├── evidence/verification.json  # 自身新鲜验收回执（哈希绑定）
 ├── references/
 │   ├── forge.md                # 锻造管线详解（调研 / 内核提炼 / 构建 / 出厂测试 / 精炼）
 │   ├── executable-checklist.md # 承诺→断言矩阵 + 12 项可执行出厂预检 + 故障注入
@@ -348,12 +363,14 @@ pangu-create/
 
 | 案例 | 类型 | 结果 |
 |---|---|---|
-| `threejs-web` | 3D 网页 | rubric 81/81；设计论点「The Lit Plinth（有光的地台）」 |
-| `knowledge-cards` | 知识卡片 | rubric 78.6/81；节点-连线架构图形态 |
-| `photoreal-product` | 棚拍级产品页 | 独立盲评 6/7，高于普通 three.js 对照页 |
-| `html-to-video` | HTML 转视频 | 进化后观感显著优于初版 |
-| `novel-writing` | 长篇小说 | 状态路由 + 连续性账本 + 三层钩子库 |
+| `threejs-web` | 3D 网页 | 设计论点「The Lit Plinth（有光的地台）」；旧版结构分 81/81（口径已废弃），成品仍被用户判「一般」——作为「文档分≠作品分」的反例保留 |
+| `knowledge-cards` | 知识卡片 | 节点-连线架构图形态；结构、故障注入、离线自包含有历史回执 |
+| `photoreal-product` | 棚拍级产品页 | 历史独立盲评 6/7，高于普通 three.js 对照页 |
+| `html-to-video` | HTML 转视频 | 进化后观感显著优于初版；渲染时长/帧率有 ffprobe 实测记录 |
+| `novel-writing` | 长篇小说 | 状态路由 + 连续性账本 + 三层钩子库；v1.3 修复状态解析与座位数连续性 |
 | `web-game-craft` | 像素游戏 | 真实事故回流为铁律（语法自检 / dt 量纲） |
+
+> 这些案例早于 v1.3 的 `tests/verification.json` + 新鲜回执机制，历史记录不能当作当前认证。v1.3 的自身回执见 [evidence/verification.json](evidence/verification.json)；其他 skill 需逐个迁移后才能用新闸门复验。
 
 ---
 
@@ -372,7 +389,7 @@ pangu-create/
 开跑前会报档位：快速（约标准档 1/3）/ 标准 / 精品。长任务按 Phase 落盘，可分段续跑。
 
 **Q：生成物一定要有 Python 脚本吗？**
-产出型 skill 必须有「确定性核心」（一键 verify / finalize）；纯文本型 skill 可只交付骨架与测试题，闸门会按 `--type text` 降级。
+产出型 skill 必须有「确定性核心」（一键 verify / finalize）；纯文本型 skill 可只交付骨架与测试题，但承诺级的可执行能力仍需 `tests/verification.json` 里的行为测试。闸门按 `--type text` 降级结构要求，不会把「只有文本」当成行为已验证。
 
 **Q：中文还是英文？**
 本体是中文，frontmatter 与触发词包含英文别名；英文速览见 [README.en.md](README.en.md)；产出的 skill 语言跟随用户与领域素材。
@@ -383,14 +400,17 @@ pangu-create/
 
 诚实边界（完整版见 [SKILL.md](SKILL.md)「诚实边界」）：
 
-- **rubric 自动分只覆盖文档结构**（81/100），维度 8「实测表现」必须人工跑测试题
+- **rubric 自动分只覆盖结构维度**（75/100），维度 8「实测表现」与维度 10「品味」必须人工
+- **`verify_skill.py` 的哈希绑定只证明回执对应这份源码/清单且当时通过**，不证明断言覆盖了全部真实意图
+- **只读审计不是发布认证**：评分/体检只出报告，不写账本、不建分支；要改需另行授权
 - **盲评仍是模型判断**，不能替代真实用户研究；重要决策保留人审
 - **市场热度扫描是启发式**，4 指标不等于真实市场数据
-- **趋势分析依赖 `results.tsv` 数据质量**，记录不完整会误导判断
+- **趋势分析依赖 `results.tsv` 数据质量**；解析器会报告无表头/短行/缺少 full_test，趋势仍可能误导
 - **冷门领域**（可靠来源 <5 条）只能产出框架级 skill，交付时会标注薄弱维度
 - **找不到顶级参照物时**，产出质量第一关只能降级，成品上限随之降低
 - **触发可靠性受运行时 skill 发现机制影响**，description 迭代只能提高概率
 - **蒸馏真人思维或私有流程**时，素材合法性与授权由用户负责
+- **历史案例未全部迁移到 v1.3 回执机制**：本仓库内 `skills/` 的旧案例仍保留历史证据，但不能冒充当前新鲜回执
 
 ---
 
@@ -406,7 +426,9 @@ pangu-create/
 
 ```bash
 python scripts/quality_check.py SKILL.md
-python scripts/rubric_score.py SKILL.md
+python scripts/rubric_score.py SKILL.md --json
+python scripts/verify_skill.py . --type text --execute
+python scripts/verify_skill.py . --type text --check
 ```
 
 ---

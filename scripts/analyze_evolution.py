@@ -33,142 +33,199 @@ except Exception:
     pass
 
 
+CANONICAL_9 = ["timestamp", "commit", "skill", "old_score", "new_score",
+              "status", "dimension", "note", "eval_mode"]
+CANONICAL_10 = CANONICAL_9 + ["evidence"]
+ALIASES = {
+    "ts": "timestamp",
+    "time": "timestamp",
+    "verdict": "status",
+    "notes": "note",
+    "mode": "eval_mode",
+    "session": "session",
+    "phase": "phase",
+    "check": "check",
+    "expected": "expected",
+    "observed": "observed",
+}
+
+
 def parse_tsv(path: Path):
-    """解析 results.tsv，返回记录列表（dict）。"""
-    records = []
+    """解析进化账本，兼容注释头、无表头 9/10 列、逗号/Tab、旧 9 列。
+
+    返回 (records, error, warnings)。绝不静默丢行：列数不足/超出、缺 status
+    都会进入 warnings，由调用方展示。
+    """
+    warnings = []
     try:
-        with open(path, "r", encoding="utf-8") as f:
-            reader = csv.DictReader(f, delimiter="\t")
-            for row in reader:
-                records.append(row)
+        text = path.read_text(encoding="utf-8-sig")
     except FileNotFoundError:
-        return [], f"文件不存在: {path}"
-    except Exception as e:
-        return [], f"解析失败: {e}"
-    return records, None
+        return [], f"文件不存在: {path}", warnings
+    except OSError as exc:
+        return [], f"读取失败: {exc}", warnings
+
+    lines = []
+    for line_no, line in enumerate(text.splitlines(), 1):
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        lines.append((line_no, line))
+    if not lines:
+        return [], "无有效数据行（全部为空或注释）", warnings
+
+    first_no, first_line = lines[0]
+    delimiter = "	" if first_line.count("	") >= first_line.count(",") else ","
+    parsed = []
+    for line_no, line in lines:
+        try:
+            cells = next(csv.reader([line], delimiter=delimiter))
+        except csv.Error as exc:
+            warnings.append(f"第 {line_no} 行无法解析：{exc}")
+            continue
+        parsed.append((line_no, [cell.strip() for cell in cells]))
+    if not parsed:
+        return [], "没有可解析的数据行", warnings
+
+    first_cells = parsed[0][1]
+    first_key = first_cells[0].lower() if first_cells else ""
+    looks_header = first_key in {"timestamp", "ts", "time", "phase", "session"} or any(
+        cell.lower() in {"status", "verdict", "skill"} for cell in first_cells
+    )
+    if looks_header:
+        header = [ALIASES.get(cell.lower(), cell.lower()) for cell in first_cells]
+        data_rows = parsed[1:]
+    else:
+        width = len(first_cells)
+        if width == 9:
+            header = CANONICAL_9[:]
+        elif width >= 10:
+            header = CANONICAL_10[:]
+        else:
+            return [], f"无表头且只有 {width} 列，无法识别（需 9/10 列）", warnings
+        data_rows = parsed
+        warnings.append(f"未发现表头；按 {len(header)} 列规范表头解析（首行 L{first_no} 视为数据）")
+
+    if "status" not in header:
+        return [], f"表头缺 status/verdict 列：{header}", warnings
+
+    records = []
+    for line_no, cells in data_rows:
+        if len(cells) < len(header):
+            warnings.append(f"L{line_no} 列数 {len(cells)} < {len(header)}，缺列按空值保留")
+            cells = cells + [""] * (len(header) - len(cells))
+        elif len(cells) > len(header):
+            extra = cells[len(header) - 1:]
+            cells = cells[:len(header) - 1] + [delimiter.join(extra)]
+            warnings.append(f"L{line_no} 列数超出，多出的 {len(extra) - 1} 段并入最后一列")
+        record = dict(zip(header, cells))
+        record["_line"] = line_no
+        records.append(record)
+
+    if not records:
+        return [], "只有表头，没有数据行", warnings
+    return records, None, warnings
 
 
-def analyze(records, months_limit=None):
-    """对记录做统计分析，返回分析结果 dict。"""
+def analyze(records, months_limit=None, parse_warnings=None):
+    """对记录做统计分析；只报告发生率，不从缺失数据推断「健康」。"""
     if not records:
         return None, "无记录"
 
-    # 1. 状态分布
-    status_counts = Counter(r.get("status", "").strip() for r in records)
+    def field(record, key, default="未标注"):
+        value = record.get(key, default)
+        return value.strip() if isinstance(value, str) else default
 
-    # 2. 维度频次（仅 worse 记录）
-    worse_records = [r for r in records if r.get("status", "").strip() == "worse"]
-    dim_counts = Counter(r.get("dimension", "未标注").strip() for r in worse_records)
+    warnings = list(parse_warnings or [])
+    status_counts = Counter(field(r, "status", "未标注") or "未标注" for r in records)
+    worse_records = [r for r in records if field(r, "status", "").lower() == "worse"]
+    dim_counts = Counter(field(r, "dimension", "未标注") or "未标注" for r in worse_records)
 
-    # 3. 时间趋势（按月聚合 worse）
     monthly = defaultdict(int)
+    invalid_timestamps = 0
     for r in worse_records:
-        ts = r.get("timestamp", "").strip()
+        ts = field(r, "timestamp", "")
         try:
-            dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
-            month_key = dt.strftime("%Y-%m")
-        except Exception:
-            month_key = "未知"
-        monthly[month_key] += 1
-
-    # 按时间排序
+            monthly[datetime.fromisoformat(ts.replace("Z", "+00:00")).strftime("%Y-%m")] += 1
+        except ValueError:
+            invalid_timestamps += 1
+            monthly["未知"] += 1
     monthly_sorted = dict(sorted(monthly.items()))
-
-    # 限制月份数
     if months_limit and len(monthly_sorted) > months_limit:
-        items = list(monthly_sorted.items())[-months_limit:]
-        monthly_sorted = dict(items)
+        monthly_sorted = dict(list(monthly_sorted.items())[-months_limit:])
 
-    # 4. 技能分布（每个 skill 的 worse 计数）
-    skill_worse = Counter(r.get("skill", "未标注").strip() for r in worse_records)
-
-    # 5. 高频痛点交叉表（worse 维度 × skill）
+    skill_worse = Counter(field(r, "skill", "未标注") or "未标注" for r in worse_records)
     cross = defaultdict(lambda: defaultdict(int))
     for r in worse_records:
-        skill = r.get("skill", "未标注").strip()
-        dim = r.get("dimension", "未标注").strip()
-        cross[skill][dim] += 1
+        cross[field(r, "skill", "未标注") or "未标注"][field(r, "dimension", "未标注") or "未标注"] += 1
 
-    # 6. 评估模式分布
-    eval_modes = Counter(r.get("eval_mode", "未标注").strip() for r in worse_records)
+    eval_modes = Counter(field(r, "eval_mode", "未标注") or "未标注" for r in records)
+    full_tests = eval_modes.get("full_test", 0)
+    dry_runs = eval_modes.get("dry_run", 0)
+    paired = sum(count for mode, count in eval_modes.items() if mode.startswith("paired"))
 
-    # 7. 最近 worse 的 note 摘要（最近 3 条）
+    missing_status = status_counts.get("未标注", 0)
+    if missing_status:
+        warnings.append(f"{missing_status} 条记录缺 status/verdict")
+    if invalid_timestamps:
+        warnings.append(f"{invalid_timestamps} 条 worse 记录时间戳不可解析")
+
+    has_evidence_col = any("evidence" in r for r in records)
+    evidence_missing = sum(1 for r in records if field(r, "evidence", "").strip() in {"", "-"})
+    if not has_evidence_col:
+        warnings.append("账本没有 evidence 列；所有结论都无法回溯到工件")
+    elif evidence_missing:
+        warnings.append(f"{evidence_missing}/{len(records)} 条记录 evidence 为空或 '-'")
+
     recent_worse = []
     for r in worse_records[-3:]:
-        note = r.get("note", "").strip()
-        # 截断过长 note
-        if len(note) > 100:
-            note = note[:100] + "..."
+        note = field(r, "note", "").strip()
         recent_worse.append({
-            "timestamp": r.get("timestamp", ""),
-            "dimension": r.get("dimension", ""),
-            "note": note,
+            "timestamp": field(r, "timestamp", ""),
+            "dimension": field(r, "dimension", ""),
+            "note": note[:100] + "..." if len(note) > 100 else note,
         })
 
-    # 8. 改进建议（基于数据自动生成）
     suggestions = []
-
-    # 建议1: 高频维度
     if dim_counts:
         top_dim, top_count = dim_counts.most_common(1)[0]
         if top_count >= 2:
             suggestions.append(
-                f"🔴 高频痛点维度: 「{top_dim}」出现 {top_count} 次 worse "
-                f"——这大概率是架构级短板，建议优先审视 盘古开天 自身设计中"
-                f"与该维度相关的部分（铁律/工作流/检查点），而非只做表层修补。"
+                f"高频痛点维度「{top_dim}」出现 {top_count} 次 worse——优先回 F2/F3 查设计，不做表层修补。"
             )
 
-    # 建议2: 检查点相关 worse
     check_dims = [d for d in dim_counts if "检查点" in d or "checkpoint" in d.lower()]
     if check_dims:
-        suggestions.append(
-            f"⚠️ 检查点相关问题: {check_dims} —— CHECKPOINT 被跳过是已知高危模式，"
-            f"确认每次锻造都有用户交互记录（results.tsv 的 eval_mode 含 paired_worse_user 说明是用户抓包）。"
-        )
+        suggestions.append(f"检查点相关 worse: {check_dims}；核对记录中的用户交互/代答声明，代答不算通过。")
 
-    # 建议3: 观感/品味相关 worse
-    taste_dims = [d for d in dim_counts if any(k in d for k in ("观感", "品味", "taste", "审美", "观感维度"))]
+    taste_dims = [d for d in dim_counts if any(k in d for k in ("观感", "品味", "taste", "审美"))]
     if taste_dims:
-        suggestions.append(
-            f"⚠️ 观感/品味问题: {taste_dims} —— 产出型 skill 必须有配方库 + 惊喜线验证，"
-            f"确认 F3 构建阶段强制检查配方库捆绑，F4 出厂测试跑惊喜线（≥2 个进阶效果）。"
-        )
+        suggestions.append(f"观感/品味 worse: {taste_dims}；需盲评与参照物，关键词检查不能替代。")
 
-    # 建议4: 意图显影相关 worse
-    intent_dims = [d for d in dim_counts if "意图" in d or "显影" in d or "理解" in d]
+    intent_dims = [d for d in dim_counts if any(k in d for k in ("意图", "显影", "理解"))]
     if intent_dims:
-        suggestions.append(
-            f"⚠️ 意图显影问题: {intent_dims} —— 确认 Phase 0.5 第 1 步「索要参照物」是强制动作"
-            f"（一图胜十问），L1/L2 级别必须走三拍全走（方向卡 + 探针 + 定稿）。"
-        )
+        suggestions.append(f"意图显影 worse: {intent_dims}；先索要参照物并留下意图档案。")
 
-    # 建议5: 时间趋势
+    if full_tests == 0:
+        suggestions.append(
+            f"没有任何 full_test 记录（dry_run={dry_runs}）——D8 实测表现不可打分，"
+            "本轮不得宣称能力提升，也不得用结构分替代。"
+        )
+    elif dry_runs > full_tests:
+        suggestions.append(f"dry_run({dry_runs}) > full_test({full_tests})，评估覆盖率不足，结论只作线索。")
+
     if len(monthly_sorted) >= 2:
         months = list(monthly_sorted.keys())
-        first_count = monthly_sorted[months[0]]
-        last_count = monthly_sorted[months[-1]]
+        first_count, last_count = monthly_sorted[months[0]], monthly_sorted[months[-1]]
         if last_count > first_count:
             suggestions.append(
-                f"📈 worse 趋势上升: {months[0]}({first_count}) → {months[-1]}({last_count}) "
-                f"—— worse 在增加说明问题在积累，可能需要一次探索性重写（E2.5）而非继续修补。"
+                f"worse 数上升: {months[0]}({first_count}) → {months[-1]}({last_count})；"
+                "考虑 E2.5 探索性重写而不是继续修补。"
             )
-        elif last_count < first_count and last_count == 0:
+        elif last_count < first_count:
             suggestions.append(
-                f"📉 worse 趋势下降: {months[0]}({first_count}) → {months[-1]}({last_count}) "
-                f"—— 近期无 worse，进化循环健康，可考虑将积累的成功模式固化进共享知识库。"
+                f"worse 数下降: {months[0]}({first_count}) → {months[-1]}({last_count})；"
+                "下降只说明负面信号变少，不等于质量已被证明。"
             )
 
-    # 建议6: eval_mode 检查
-    dry_runs = eval_modes.get("dry_run", 0)
-    full_tests = eval_modes.get("full_test", 0)
-    paired = eval_modes.get("paired", 0) + eval_modes.get("paired_worse_user", 0)
-    if dry_runs > full_tests and full_tests == 0:
-        suggestions.append(
-            f"❌ 评估有效性警告: dry_run({dry_runs}) > full_test({full_tests})，"
-            f"缺少真实测试题验证（rubric 维度 8 无法打分）。"
-        )
-
-    # 建议7: 重复 worse 检测（同一维度同一 skill 出现 ≥2 次 worse）
     repeated = []
     for skill, dims in cross.items():
         for dim, count in dims.items():
@@ -176,18 +233,30 @@ def analyze(records, months_limit=None):
                 repeated.append(f"「{skill}」的「{dim}」出现 {count} 次 worse")
     if repeated:
         suggestions.append(
-            f"🔴 重复 worse: {', '.join(repeated)} —— 同一问题两次 worse 按进化契约应触发"
-            f"探索性重写（E2.5）或回炉 F2 内核提炼，不再做表层修补。"
+            f"重复 worse: {', '.join(repeated)}；同坑第二次出现应机器化拦截，而非继续加文档。"
         )
 
+    data_quality = {
+        "records": len(records),
+        "has_evidence_column": has_evidence_col,
+        "evidence_missing": evidence_missing,
+        "full_test": full_tests,
+        "dry_run": dry_runs,
+        "paired": paired,
+        "missing_status": missing_status,
+        "invalid_timestamps": invalid_timestamps,
+        "warnings": warnings,
+    }
     return {
         "total_records": len(records),
         "total_worse": len(worse_records),
+        "worse_incidence": round(len(worse_records) / len(records), 4),
         "status_distribution": dict(status_counts),
         "dim_frequency": dict(dim_counts.most_common()),
         "monthly_trend": monthly_sorted,
         "skill_worse": dict(skill_worse.most_common()),
         "eval_modes": dict(eval_modes),
+        "data_quality": data_quality,
         "recent_worse": recent_worse,
         "cross_table": {skill: dict(dims) for skill, dims in cross.items()},
         "suggestions": suggestions,
@@ -206,7 +275,20 @@ def format_report(analysis, source_path):
 
     # 概览
     lines.append(f"总记录: {analysis['total_records']} 条")
-    lines.append(f"worse 记录: {analysis['total_worse']} 条")
+    lines.append(f"worse 记录: {analysis['total_worse']} 条（发生率 {analysis['worse_incidence']:.1%}）")
+    lines.append("")
+
+    lines.append("## 数据质量")
+    quality = analysis["data_quality"]
+    lines.append(
+        f"  full_test={quality['full_test']} | dry_run={quality['dry_run']} | paired={quality['paired']}"
+        f" | evidence 缺失={quality['evidence_missing']}/{quality['records']}"
+    )
+    if quality["warnings"]:
+        for warning in quality["warnings"]:
+            lines.append(f"  ! {warning}")
+    else:
+        lines.append("  无解析警告（仍不代表记录内容真实）")
     lines.append("")
 
     # 状态分布
@@ -303,14 +385,14 @@ def main():
     args = parser.parse_args()
 
     tsv_path = Path(args.tsv_path)
-    records, err = parse_tsv(tsv_path)
+    records, err, warnings = parse_tsv(tsv_path)
     if err:
-        print(f"❌ {err}")
+        print(f"❌ {err}", file=sys.stderr)
         sys.exit(1)
 
-    analysis, err2 = analyze(records, args.months)
+    analysis, err2 = analyze(records, args.months, warnings)
     if err2:
-        print(f"❌ {err2}")
+        print(f"❌ {err2}", file=sys.stderr)
         sys.exit(1)
 
     if args.json:
