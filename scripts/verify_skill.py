@@ -53,6 +53,11 @@ def real_files(directory):
     return [p for p in directory.rglob("*") if p.is_file() and p.name.lower() not in META_FILES]
 
 
+def normalized_bytes(path):
+    # 证据哈希必须跨平台稳定：同一内容在 LF/CRLF 工作树下应得到同一指纹
+    return path.read_bytes().replace(b"\r\n", b"\n")
+
+
 def source_fingerprint(root):
     digest = hashlib.sha256()
     files = sorted(p for p in root.rglob("*") if p.is_file()
@@ -61,14 +66,16 @@ def source_fingerprint(root):
     for path in files:
         relative = path.relative_to(root).as_posix().encode("utf-8")
         digest.update(len(relative).to_bytes(4, "big") + relative)
-        with path.open("rb") as stream:
-            while chunk := stream.read(1024 * 1024):
-                digest.update(chunk)
+        digest.update(normalized_bytes(path))
     return digest.hexdigest(), len(files)
 
 
 def contract_path(root):
     return root / "tests" / "verification.json"
+
+
+def contract_digest(root):
+    return hashlib.sha256(normalized_bytes(contract_path(root))).hexdigest()
 
 
 def load_contract(root):
@@ -331,7 +338,7 @@ def execute_contract(root, selected=None):
         "suite_ids": [suite["id"] for suite in chosen],
         "source_file_count": file_count,
         "source_sha256": fingerprint,
-        "contract_sha256": hashlib.sha256(contract_path(root).read_bytes()).hexdigest(),
+        "contract_sha256": contract_digest(root),
         "overall_exit_code": overall,
         "status": {0: "pass", 1: "fail", 2: "env_error"}[overall],
         "suites": results,
@@ -345,7 +352,7 @@ def gate_evidence(root):
     try:
         report = json.loads(path.read_text(encoding="utf-8"))
         fingerprint, _ = source_fingerprint(root)
-        contract_hash = hashlib.sha256(contract_path(root).read_bytes()).hexdigest()
+        contract_hash = contract_digest(root)
         suites, error = load_contract(root)
         if error:
             return False, error

@@ -14,6 +14,33 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 import analyze_evolution  # noqa: E402
 import rubric_score  # noqa: E402
+import verify_skill  # noqa: E402
+
+
+class EvidencePortabilityTest(unittest.TestCase):
+    def test_line_endings_do_not_change_source_fingerprint(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "SKILL.md").write_bytes(b"# demo\nbody\n")
+            (root / "scripts").mkdir()
+            (root / "scripts" / "run.py").write_bytes(b"print(1)\n")
+            before, count = verify_skill.source_fingerprint(root)
+            (root / "SKILL.md").write_bytes(b"# demo\r\nbody\r\n")
+            (root / "scripts" / "run.py").write_bytes(b"print(1)\r\n")
+            after, count_after = verify_skill.source_fingerprint(root)
+            self.assertEqual(before, after)
+            self.assertEqual(count, count_after)
+
+    def test_line_endings_do_not_change_contract_hash(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "tests").mkdir()
+            contract = root / "tests" / "verification.json"
+            contract.write_bytes(b'{"version": 1}\n')
+            before = verify_skill.contract_digest(root)
+            contract.write_bytes(b'{"version": 1}\r\n')
+            after = verify_skill.contract_digest(root)
+            self.assertEqual(before, after)
 
 
 class RubricHonestyTest(unittest.TestCase):
