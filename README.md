@@ -34,6 +34,7 @@
 - [核心主张](#核心主张)
 - [两条管线](#两条管线)
 - [快速开始](#快速开始)
+- [一句话生成的作品](#一句话生成的作品)
 - [怎么用](#怎么用)
 - [交付物长什么样](#交付物长什么样)
 - [质量体系](#质量体系)
@@ -149,6 +150,32 @@ python pangu-create/scripts/rubric_score.py pangu-create/SKILL.md
 ```
 
 或使用任意旧触发词：「造skill」「创建skill」「把XX做成skill」「蒸馏成skill」「优化skill」「给skill打分」「skill体检」。
+
+---
+
+## 一句话生成的作品
+
+先看效果再谈原理。以下作品全部由 **pangu-create 锻造出来的技能**（`mech-atlas` / `threejs-web` / `web-game-craft` 等）生成，每件只花了一句自然语言指令——没有手写代码，没有逐帧调参。
+
+**🔧 机械原理 3D 剖解 · mech-atlas**（HUD 风格 · 零件点击拆解 · 原理阶梯 · 运动学动画）
+
+| 单级行星减速器 | 单缸四冲程汽油机 | 端吸离心泵 |
+|---|---|---|
+| ![单级行星减速器](assets/showcase/mech-atlas-gearbox.jpg) | ![单缸四冲程汽油机](assets/showcase/mech-atlas-engine.jpg) | ![端吸离心泵](assets/showcase/mech-atlas-pump.jpg) |
+
+**🎮 3D 场景与游戏**
+
+| 风暴荒漠 · 3D 动作 Roguelite | BLACKSPIRE · 月夜哥特古堡 | 第五章 · 滑轨 · 纪念碑谷式解谜 |
+|---|---|---|
+| ![风暴荒漠](assets/showcase/storm-desert-roguelite.jpg) | ![BLACKSPIRE](assets/showcase/blackspire-castle.jpg) | ![滑轨解谜](assets/showcase/monument-puzzle.jpg) |
+
+**✨ 产品级 WebGL 灯光渲染**
+
+| TEN-TEN · 手表灯光脚本 | THE LIT PLINTH · 产品展台 |
+|---|---|
+| ![TEN-TEN](assets/showcase/ten-ten-watch.jpg) | ![THE LIT PLINTH](assets/showcase/lit-plinth.jpg) |
+
+一句话 → 可运行、可交互、可发布的作品。这就是「万物皆可成技能」。
 
 ---
 
