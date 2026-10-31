@@ -1,0 +1,4 @@
+timestamp	severity	scene	symptom	evidence	status
+2026-10-31	blocker	文档链路	forge.md F3.5 检查点写「进入 F4」跳过 F3.6 可执行预检；F2 闸门要求新鲜回执但回执物理上只能产生于 F3.6（不可满足）	independent doc audit (agent)	resolved
+2026-10-31	major	文档口径	9 处漂移：观感两档vs三档、量化表指针错指 testing.md、三件vs四件硬产物、AP-14 编号错位、F0.5 命名、质量维度卡列漂移、迭代轮数上下限冲突、配方≥2/≥3、F2三份输入缺一	independent doc audit (agent)	resolved
+2026-10-31	major	技能群失联	存量 9 个盘古锻造 skill 无任何机器可读的血统记录，注册表/巡检/自动触发无从谈起	user goal (v1.4.0)	resolved

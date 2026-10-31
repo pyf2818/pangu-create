@@ -43,6 +43,47 @@ class EvidencePortabilityTest(unittest.TestCase):
             self.assertEqual(before, after)
 
 
+class RubricTypeDetectionTest(unittest.TestCase):
+    """分型探测：元技能自述（frontmatter）必须压过 showcase 资产存在（v1.4.0 实测坑）。"""
+
+    def write_skill(self, root: Path, frontmatter: str, body: str, showcase: bool = False):
+        root.mkdir(parents=True, exist_ok=True)
+        (root / "SKILL.md").write_text(f"---\n{frontmatter}\n---\n{body}", encoding="utf-8")
+        if showcase:
+            (root / "assets" / "showcase").mkdir(parents=True, exist_ok=True)
+            (root / "assets" / "showcase" / "shot.jpg").write_bytes(b"\xff\xd8fake")
+
+    def test_meta_declaration_outranks_showcase_assets(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "meta"
+            self.write_skill(root,
+                             "name: meta-skill\ndescription: |\n  万物皆可成技能：把任何领域锻造成 Agent Skill。",
+                             "# 正文\n")
+            self.assertEqual(rubric_score.detect_skill_type(root / "SKILL.md", "# 正文\n"), "text")
+
+    def test_output_skill_with_corpus_stays_output(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "visual"
+            self.write_skill(root,
+                             "name: visual-skill\ndescription: |\n  帮用户做 3D 网页。",
+                             "# 正文\n做 3D 页面。", showcase=True)
+            self.assertEqual(rubric_score.detect_skill_type(root / "SKILL.md", "# 正文\n做 3D 页面。"), "output")
+
+    def test_body_hint_without_corpus_is_text(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "bodymeta"
+            self.write_skill(root,
+                             "name: plain\ndescription: |\n  一个工具。",
+                             "# 正文\n本 skill 提供锻造管线。")
+            self.assertEqual(rubric_score.detect_skill_type(root / "SKILL.md", "# 正文\n本 skill 提供锻造管线。"), "text")
+
+    def test_no_signal_defaults_to_output_strictly(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "bare"
+            self.write_skill(root, "name: bare\ndescription: |\n  做事。", "# 正文\n做事。")
+            self.assertEqual(rubric_score.detect_skill_type(root / "SKILL.md", "# 正文\n做事。"), "output")
+
+
 class RubricHonestyTest(unittest.TestCase):
     def test_json_is_pure_and_manual_dimensions_are_not_scored(self):
         proc = subprocess.run(

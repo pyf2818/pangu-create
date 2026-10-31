@@ -227,6 +227,62 @@ def main():
         check("E3 --check 拦截过期回执",
               cli.returncode == 1 and not data["delivery_ready"],
               f"exit={cli.returncode} ready={data['delivery_ready']}")
+
+        print("[F] 吸收表/竞争测试空转过闸（v1.4.0 新闸）")
+        root = make_skill(base / "n")
+        ok, detail = V.gate_sibling(root)
+        check("F1 无吸收表放行（快速蒸馏合法）", ok, detail)
+        write(root / "references" / "research" / "04-sibling-skills.md",
+              "# 同类技能侦察与吸收表\n\n（TODO）\n")
+        ok, detail = V.gate_sibling(root)
+        check("F2 空壳吸收表被拒", not ok, detail)
+        write(root / "references" / "research" / "04-sibling-skills.md",
+              "# 吸收表\n\n| 来源 skill | 值得吸收的手法 | 吸收方式 | 它的短板 |\n|---|---|---|---|\n| some-skill | 结构分层 | | 无失败分支 |\n")
+        ok, detail = V.gate_sibling(root)
+        check("F3 缺吸收方式被拒", not ok, detail)
+        write(root / "references" / "research" / "04-sibling-skills.md",
+              "# 吸收表\n\n| 来源 skill | 值得吸收的手法 | 吸收方式 | 它的短板 |\n|---|---|---|---|\n| some-skill | 结构分层 | 改造吸收 | 无失败分支 |\n")
+        ok, detail = V.gate_sibling(root)
+        check("F4 合格吸收表通过", ok, detail)
+
+        thesis_ok = """# 设计论点：T
+
+## 三问
+| 问题 | 回答 |
+|------|------|
+| q1 | a1 |
+| q2 | a2 |
+| q3 | a3 |
+
+## 竞争测试
+- 最近的同类：X
+- 现场可复核证据（实测/参数对照）：实测见 references/research/baseline.md，盲评 6/7
+- 把对方代入论点句是否仍成立：否
+- 结论：同类代入后不成立
+
+## 独有素材
+| # | 素材 | 换一个同类主体还成立吗？ |
+|---|------|----------------------|
+| 1 | s1 | 否 |
+| 2 | s2 | 否 |
+| 3 | s3 | 否 |
+| 4 | s4 | 否 |
+| 5 | s5 | 否 |
+| 6 | s6 | 否 |
+| 7 | s7 | 否 |
+| 8 | s8 | 否 |
+"""
+        write(root / "references" / "design-thesis.md",
+              thesis_ok.replace("- 现场可复核证据（实测/参数对照）：实测见 references/research/baseline.md，盲评 6/7\n", ""))
+        ok, detail = V.gate_thesis(root)
+        check("F5 竞争测试缺证据行被拒", not ok, detail)
+        write(root / "references" / "design-thesis.md",
+              thesis_ok.replace("实测见 references/research/baseline.md，盲评 6/7", "TODO"))
+        ok, detail = V.gate_thesis(root)
+        check("F6 证据行 TODO 被拒", not ok, detail)
+        write(root / "references" / "design-thesis.md", thesis_ok)
+        ok, detail = V.gate_thesis(root)
+        check("F7 证据行带落点通过", ok, detail)
     finally:
         tmp.cleanup()
 

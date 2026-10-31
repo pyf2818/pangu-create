@@ -11,7 +11,7 @@ Forge any domain, task, or expert's craft into an Agent Skill that runs, verifie
 
 **[中文](README.md)** · English
 
-[![version](https://img.shields.io/badge/version-1.3.0-C8955A?style=flat-square)](https://github.com/pyf2818/pangu-create/releases)
+[![version](https://img.shields.io/badge/version-1.4.0-C8955A?style=flat-square)](https://github.com/pyf2818/pangu-create/releases)
 [![license](https://img.shields.io/badge/license-MIT-3B82F6?style=flat-square)](LICENSE)
 [![python](https://img.shields.io/badge/python-3.9%2B-3776AB?style=flat-square)](scripts)
 [![Agent Skill](https://img.shields.io/badge/Agent%20Skill-compatible-8B5CF6?style=flat-square)](#quick-start)
@@ -51,6 +51,24 @@ In one line: **a document score is not an artifact score; doc compliance is not 
 3. **Deterministic production line** — core generation and validation live in `scripts/` with one-command `verify` / `finalize`. No drift across models; reproducible across people.
 
 These are written into `references/design-thesis.md` at project kickoff and enforced by `scripts/verify_skill.py` — not by model discipline.
+
+## Signature mechanisms (v1.4.0)
+
+> Forging is only the beginning. Every skill pangu forges becomes a **linked, auditable, self-reporting** asset instead of a stray folder.
+
+| Mechanism | Carrier | In one line |
+|---|---|---|
+| 🩸 **Lineage manifest** | `pangu.json` | lineage_id / domain / generation / depth ship with every skill; legacy skills get registered with a single `--adopt` command |
+| 📬 **Feedback inbox** | `feedback/inbox.tsv` | Real usage problems get logged on the spot; an open blocker/major row is a **mandatory evolution trigger** (contract #8) |
+| 🗂️ **Skill fleet registry** | `scripts/registry.py` | One-command scan: generation / depth / ledger / open feedback / receipt freshness + orphan detection; `--strict` exit code fits CI |
+
+```bash
+python scripts/registry.py <workspace-root> --sync
+```
+
+Self-hosted verification: 10 skills (9 forged products + pangu itself) registered; **5 behavior suites / 61 assertions** green (rubric auto score at its 75/75 ceiling; D8 real-world testing and D10 taste stay human by design).
+
+---
 
 ## Two pipelines
 

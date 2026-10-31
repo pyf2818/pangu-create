@@ -64,9 +64,17 @@ def detect_skill_type(md_path: Path, body: str, forced: str = "auto") -> str:
     实测坑（pangu-create 自评假阴性）：元技能 SKILL.md 里给下游技能写的模板路径
     （references/design-thesis.md 等）被 D6 当成自身失效引用、D11 被判「无范例」——
     元技能的范例是它锻造出的下游 skill，不存在于自身目录。分型后各用各的判据。
+
+    优先级（v1.4.0 修正）：frontmatter description 里的元技能自述 > 范例资产存在 >
+    正文元技能特征 > 从严 output。为什么自述优先于资产：元技能的 showcase 放的是
+    下游作品截图（pangu 的 assets/showcase 全是锻造产物），资产存在不构成产出型证据；
+    description 是技能对自身身份的显式声明，是更强的信号。产出型从严兜底不变。
     """
     if forced in ("output", "text"):
         return forced
+    fm, _ = split_frontmatter(md_path.read_text(encoding="utf-8-sig"))
+    if fm and META_HINT.search(fm):
+        return "text"
     root = md_path.parent
     has_corpus = any(
         (root / d).exists() and any(f.is_file() for f in (root / d).rglob("*"))

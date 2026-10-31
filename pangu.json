@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "lineage_id": "pgn-202610310156-8c81",
+  "forged_by": "pangu-create",
+  "pangu_version": "1.4.0",
+  "name": "pangu-create",
+  "skill_type": "text",
+  "domain": "元技能·skill锻造",
+  "forge_date": "2026-10-04",
+  "generation": 5,
+  "depth": "L3",
+  "adopted": true,
+  "notes": "盘古自身；generation 与 SKILL.md 顶部代次行同步（v1.4.0=第5代）"
+}

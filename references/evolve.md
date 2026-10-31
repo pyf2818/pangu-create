@@ -29,19 +29,24 @@
 5. 用户说「优化/升级/评分」= 主动走本管线；用户没说但给了差评 = 被动触发，同样走本管线，**没有豁免**
 6. **代表作回流**：成功使用 ≠ 结束——工件择优回填 showcase 并拆解回配方/踩坑（E4，见 forge.md），skill 每被用好一次就变深一次；深度等级 L1 框架级 → L2 工程级 → L3 专家级 随回流晋升
 7. **新陈代谢（盘古自身也必须进化）**：模型自评 / 机器信号 / 用户反馈任一触发后，走 E5 四问——沉淀工艺进 [craft-atlas.md](craft-atlas.md)、补强闸门、动态淘汰该淘汰的规则。盘古不是固定图纸，是活系统；契约的这条由 E5 节执行
+8. **反馈落箱（自动触发的捕获点）**：每个盘古锻造的 skill 都有 `feedback/inbox.tsv` 收件箱。使用中发现的任何真实问题**当场落一行**（timestamp/severity/scene/symptom/evidence/status=open）——用户抱怨、报错、静默失败、产出不合预期都算。「我记住了」不算捕获。**severity=blocker/major 且 status=open 的行 = 强制进化触发器**：进 E0-E3 处理，处理中置 processing，修复后置 resolved 并在 evidence 贴 results.tsv 行号或 commit。minor 攒 ≥3 条 open 同样触发一轮。`registry.py --sync` 聚合全技能群的 open 数，巡检时任何 skill 的 blocker/major > 0 都必须当场认领或明确排期，不许视而不见
 
 ## E0 初始化
 
 ```
 1. 确认优化范围：全部 skills（扫描已安装目录）→ 用户指定列表
-2. 先判授权：只读审计 → 跳过 E0/E2，只跑 E1 的只读部分并出报告，不写任何文件
+   扫描工具：python3 scripts/registry.py <工作区根>（列已登记 skill + 孤儿 + open 反馈）
+   血统核对：每个 skill 目录应有 pangu.json；缺 → 用 scaffold.py --adopt 补登记（只加两件文件）
+2. 先读反馈收件箱：目标 skill 的 feedback/inbox.tsv 里 open 的 blocker/major
+   = 本轮最高优先级（进化契约 #8）；没有收件箱的 skill → 先补建再进化
+3. 先判授权：只读审计 → 跳过 E0/E2，只跑 E1 的只读部分并出报告，不写任何文件
    可变进化 → 继续
-3. 读 git status：
+4. 读 git status：
    - 目标目录之外有未提交改动（共享工作树）→ 不建/不切分支、不 stash；
      快照到 evidence/snapshots/YYYYMMDD-HHMM/，后续回滚只用快照
    - 工作树干净且用户明确授权提交 → 可建分支 auto-evolve/YYYYMMDD-HHMM
    - 无 git → 询问用户：init 还是快照模式（禁止用裸文件覆盖当回滚）
-4. results.tsv 不存在 → 创建并写表头（仅可变模式）；已存在 → 读取历史优化记录
+5. results.tsv 不存在 → 创建并写表头（仅可变模式）；已存在 → 读取历史优化记录
 ```
 
 results.tsv 格式（10 列，制表符分隔）：
@@ -181,6 +186,7 @@ for each skill（按基线分升序，先修最弱的）:
 - 模式：只读审计 / 可变进化（只读报告不写 results.tsv）
 - 优化 skill 数 / 总实验次数 / 保留改进数（比例）/ 回滚次数
 - 实测验证：A 次完整测试 / B 次干跑
+- 反馈收件箱：本轮认领并 resolved 的行（贴行号）/ 仍 open 的 blocker/major（须给排期）
 - triage 分数变化表（Before / After / Δ；数值来自基线与各轮 keep 后的 triage 重算，
   仅展示趋势用——keep/revert 的权威依据始终是 paired 票比，Δ 保留 1 位小数；
   自动分满分 75，D8/D10 人工分单列）
@@ -188,6 +194,7 @@ for each skill（按基线分升序，先修最弱的）:
 - 主要改进列表（每条对应 skill + 改了什么 + 实测变化）
 - 闸门状态：quality_check（结构）/ verify_skill --check（行为回执）分开列，不得合并成「全绿」
 - 运行时中立度：红灯命中数 X → 0
+- 技能群登记：keep 后 pangu.json generation +1；报告末尾跑 registry.py --sync 并贴总览
 ```
 
 ---
@@ -236,8 +243,8 @@ for each skill（按基线分升序，先修最弱的）:
 
 1. **收**：经用户认可或机器验证的工件 → 择优进 `assets/showcase/`（每类留最强一件）
 2. **拆**：提取新配方 → 配方库；新踩坑 → 踩坑表（参数级）；用户纠正 → 原话记录
-3. **回填三向（缺一不算完成）**：① 反模式黑名单加一条「现象→根因→替代」 ② 验收脚本加一条能拦住同类问题的机器断言 ③ 跨领域通用时回填 `research/shared/anti-patterns.md`
-4. **记录**：results.tsv 记 `status=harvest`，`evidence` 列贴工件路径与验证命令；深度等级 L1→L2→L3 随之晋升
+3. **回填三向（缺一不算完成）**：① 反模式黑名单加一条「现象→根因→替代」 ② 验收脚本加一条能拦住同类问题的机器断言 ③ 跨领域通用时回填 `research/shared/anti-patterns.md`；**领域工艺参数同时更新 craft-atlas.md 对应节**（参数带证据指针 + 更新历史记一行；无节则按 9 字段注册格式开新节）
+4. **记录**：results.tsv 记 `status=harvest`，`evidence` 列贴工件路径与验证命令；深度等级 L1→L2→L3 随之晋升，**pangu.json 的 depth 字段同步改**
 
 **同样的坑第二次出现 = 回流失败**，停止表面修补，回 F2/F3 改设计。
 
@@ -270,7 +277,7 @@ for each skill（按基线分升序，先修最弱的）:
 | 触发源 | 具体信号 | 说明 |
 |---|---|---|
 | **模型自评** | 交付/进化后自己跑一轮取证：spawn 独立 agent 跑 test-prompts 看结果、按 rubric 快扫、对照盲评与参照物自查差距 | 这是 E5 的**默认主动源**——每次收尾先自问「产出到底好不好」，不许只机械执行完流程就结束 |
-| **机器信号** | 闸门 FAIL、FPS/阈值贴边、盲评分低、`analyze_evolution.py` 报 worse 聚集 | 客观数据，优先级最高 |
+| **机器信号** | 闸门 FAIL、FPS/阈值贴边、盲评分低、`analyze_evolution.py` 报 worse 聚集、`registry.py` 报某 skill 有 open 的 blocker/major 反馈（收件箱即信号源） | 客观数据，优先级最高 |
 | **用户反馈** | 纠正、差评、判 worse、改需求 | 最强信号，但**不是唯一**信号——用户沉默 ≠ 没问题 |
 
 **边界**：模型自评可以触发 E5、可以发现坑，但 **keep/revert 的棘轮决策仍归 E2 的独立第三方 paired 管辖**（铁律 3）——自评是信号采集，不是质量裁决。

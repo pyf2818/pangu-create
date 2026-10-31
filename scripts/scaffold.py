@@ -4,29 +4,68 @@
 
 用法:
     python3 scaffold.py <目标skill目录> --name <skill-name> [--force]
+    python3 scaffold.py <已有skill目录> --name <skill-name> --adopt [--domain <领域>] [--forge-date YYYY-MM-DD]
 
 示例:
     python3 scaffold.py ./.agents/skills/excel-valuation --name excel-valuation
+    python3 scaffold.py ./legacy-skill --name legacy-skill --adopt --domain 数据可视化
 
 行为:
-    1. 创建目录结构（SKILL.md 骨架 / references/ / tests/ / scripts/ / examples/ / assets/showcase/）
+    1. 创建目录结构（SKILL.md 骨架 / references/ / tests/ / scripts/ / examples/ / assets/showcase/ / feedback/）
     2. 写入 test-prompts.json 空模板（提醒: 测试题先行，基线先跑）、references/design-thesis.md 论点档案、references/promise-table.md 承诺矩阵、tests/failure_injection.py 注入骨架
-    3. 已存在时默认拒绝覆盖（--force 覆盖已存在的骨架文件，但绝不删除用户文件）
+    3. 写入 pangu.json（血统清单：与盘古关联管理的锚点）与 feedback/inbox.tsv（反馈收件箱：使用问题落点，open 的 blocker/major = 强制进化触发器）
+    4. --adopt 只补 pangu.json + feedback/inbox.tsv 两件（登记存量 skill，不动其他文件）
+    5. 已存在时默认拒绝覆盖（--force 覆盖已存在的骨架文件，但绝不删除用户文件）
 
 自包含原则: 所有调研文件都必须生成在目标 skill 目录内部。
 """
 
 import argparse
+import hashlib
 import json
 import re
 import sys
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 try:
     sys.stdout.reconfigure(encoding="utf-8")
 except Exception:
     pass
+
+# 盘古代次锚点：SKILL.md 顶部代次行升级时同步改这里（registry.py 会把 forge 时的版本记进血统清单）
+PANGU_VERSION = "1.4.0"
+
+INBOX_HEADER = "timestamp\tseverity\tscene\tsymptom\tevidence\tstatus\n"
+
+INBOX_README = """# 反馈收件箱（进化触发器）
+
+> 使用本 skill 过程中遇到的每个真实问题（用户抱怨 / 报错 / 静默失败 / 产出不合预期），
+> 执行 agent 必须**当场**追加一行到 inbox.tsv——不许只口头说「记下了」。
+> severity=blocker/major 且 status=open 的行 = 强制进化触发器（盘古进化契约 #8）。
+
+severity: blocker（阻断核心承诺）/ major（明显影响产出）/ minor（打磨项）
+status:   open → processing（进化轮已认领）→ resolved（evidence 列贴 results.tsv 行号或修复 commit）
+"""
+
+
+def make_manifest(name: str, adopted: bool, forge_date: str, skill_type: str, domain: str) -> dict:
+    stamp = datetime.now().strftime("%Y%m%d%H%M")
+    tag = hashlib.sha1(f"{name}:{stamp}".encode("utf-8")).hexdigest()[:4]
+    return {
+        "schema": 1,
+        "lineage_id": f"pgn-{stamp}-{tag}",
+        "forged_by": "pangu-create",
+        "pangu_version": PANGU_VERSION,
+        "name": name,
+        "skill_type": skill_type,
+        "domain": domain,
+        "forge_date": forge_date,
+        "generation": 0,
+        "depth": "L1",
+        "adopted": adopted,
+        "notes": "由盘古 --adopt 补登记的存量 skill" if adopted else "",
+    }
 
 DESIGN_THESIS_STUB = """# 设计论点：TODO <North Star 名字>
 
@@ -238,6 +277,16 @@ description: |
 
 <!-- 冷门输入 / 参照物模式 / 更新模式（增量更新哪些维度、调研时间标在哪） -->
 
+## 反馈与进化（进化契约，不豁免）
+
+- 本 skill 由 pangu-create 锻造（血统见 pangu.json）；交付只是第 0 代。
+- **反馈落箱**：使用中遇到任何真实问题（用户抱怨 / 报错 / 静默失败 / 产出不合预期），
+  当场在 `feedback/inbox.tsv` 追加一行（timestamp/severity/scene/symptom/evidence/status=open），不许只口头记。
+- **自动触发**：severity=blocker/major 且 open 的反馈 = 强制进化轮（E0-E3，盘古 evolve.md 契约 #8）；
+  同一问题第 2 次出现 → 升级探索性重写，不做表层修补。
+- 修复后把对应行置 resolved，evidence 列贴 results.tsv 行号或修复 commit。
+- 每轮进化 keep 后 `pangu.json` 的 generation +1；代表作回流（E4）后 depth 晋升（L1→L2→L3）。
+
 ## 诚实边界
 
 - TODO: 具体局限 1
@@ -254,11 +303,32 @@ def write_if_absent(path: Path, content: str, force: bool) -> str:
     return f"  write {path}"
 
 
+def _infer_forge_date(root: Path, adopt: bool) -> str:
+    """--adopt 且有 results.tsv 时用首条记录日期做 forge_date；否则今天。"""
+    tsv = root / "results.tsv"
+    if adopt and tsv.exists():
+        try:
+            import csv as _csv
+            with tsv.open(encoding="utf-8-sig", newline="") as fh:
+                for row in _csv.reader(fh, delimiter="\t"):
+                    cells = [c.strip() for c in row]
+                    if cells and cells[0] and not cells[0].startswith("#") and cells[0].lower() not in {"timestamp", "ts", "time"}:
+                        return cells[0][:10]
+        except (OSError, csv.Error):
+            pass
+    return date.today().isoformat()
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="盘古开天 脚手架")
     parser.add_argument("target", help="目标 skill 目录路径")
     parser.add_argument("--name", required=True, help="skill 名（小写 kebab-case，须与目录名一致）")
     parser.add_argument("--force", action="store_true", help="覆盖已存在的骨架文件（不删用户文件）")
+    parser.add_argument("--adopt", action="store_true",
+                        help="登记模式：只写 pangu.json + feedback/inbox.tsv 两件，不动其他文件（用于给存量 skill 补血统）")
+    parser.add_argument("--skill-type", choices=["output", "text"], default="output", help="skill 分型（默认 output）")
+    parser.add_argument("--domain", default="TODO-领域名（craft-atlas 节名）", help="领域名（craft-atlas 节名，回填 atlas 后同步）")
+    parser.add_argument("--forge-date", default=None, help="锻造日期 YYYY-MM-DD（默认今天；--adopt 且有 results.tsv 时取首条记录日期）")
     args = parser.parse_args()
 
     if not re.fullmatch(r"[a-z0-9]+(-[a-z0-9]+)*", args.name):
@@ -266,6 +336,31 @@ def main() -> None:
         sys.exit(1)
 
     root = Path(args.target)
+
+    forge_date = args.forge_date
+    if forge_date is None:
+        forge_date = _infer_forge_date(root, args.adopt)
+
+    if args.adopt:
+        if not (root / "SKILL.md").is_file():
+            print(f"❌ --adopt 要求目标已有 SKILL.md: {root}")
+            sys.exit(1)
+        root.mkdir(parents=True, exist_ok=True)
+        manifest = make_manifest(args.name, adopted=True, forge_date=forge_date,
+                                 skill_type=args.skill_type, domain=args.domain)
+        print(f"🩸 补登记血统: {root}")
+        print(write_if_absent(root / "pangu.json",
+                              json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", args.force))
+        (root / "feedback").mkdir(parents=True, exist_ok=True)
+        print(write_if_absent(root / "feedback" / "inbox.tsv", INBOX_HEADER, args.force))
+        print(write_if_absent(root / "feedback" / "README.md", INBOX_README, args.force))
+        print()
+        print("⚠️ 登记后动作：")
+        print("  [ ] 同步注册表: python3 <盘古目录>/scripts/registry.py <工作区根> --sync")
+        print("  [ ] 领域已在 craft-atlas.md 有节 → 把 pangu.json 的 domain 对齐节名；无节 → E4 回填时注册")
+        print("  [ ] 进化 keep 后 generation +1；E4 回流后 depth 晋升（L1/L2/L3）")
+        return
+
     if root.exists() and not args.force:
         existing = [p.name for p in root.iterdir()]
         if existing:
@@ -279,8 +374,16 @@ def main() -> None:
     (root / "tests").mkdir(parents=True, exist_ok=True)
     (root / "examples").mkdir(parents=True, exist_ok=True)
     (root / "assets" / "showcase").mkdir(parents=True, exist_ok=True)
+    (root / "feedback").mkdir(parents=True, exist_ok=True)
+
+    manifest = make_manifest(args.name, adopted=False, forge_date=forge_date,
+                             skill_type=args.skill_type, domain=args.domain)
 
     print(f"🔨 脚手架: {root}  (skill: {args.name})")
+    print(write_if_absent(root / "pangu.json",
+                          json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", args.force))
+    print(write_if_absent(root / "feedback" / "inbox.tsv", INBOX_HEADER, args.force))
+    print(write_if_absent(root / "feedback" / "README.md", INBOX_README, args.force))
     print(write_if_absent(root / "SKILL.md", SKILL_MD_SKELETON.format(name=args.name, today=date.today().isoformat()), args.force))
     print(write_if_absent(
         root / "references" / "design-thesis.md",
@@ -347,6 +450,11 @@ def main() -> None:
     print("⚠️  交付后（E4/E5 回流）：")
     print("  [ ] 领域工艺参数回填 pangu-create/references/craft-atlas.md（无节则按注册格式开新节）")
     print("  [ ] 走 E5 四问（三源触发：模型自评/机器信号/用户反馈）：流程 / 闸门 / 沉淀 / 动态排异，记入 pangu-create/results.tsv")
+    print()
+    print("⚠️  技能群管理（与盘古关联）：")
+    print("  [ ] pangu.json 血统清单已生成（进化 keep 后 generation +1，E4 回流后 depth 晋升）")
+    print("  [ ] feedback/inbox.tsv 反馈收件箱已就位（使用中的问题当场落行，open 的 blocker/major = 强制进化触发器）")
+    print("  [ ] 交付时同步注册表: python3 <盘古目录>/scripts/registry.py <工作区根> --sync")
     print()
     print("下一步: 读本 skill 目录下 references/forge.md 开始 F1 调研。")
 

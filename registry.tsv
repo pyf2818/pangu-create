@@ -1,0 +1,13 @@
+name	path	domain	skill_type	forge_date	generation	depth	worse	open_fb	blocker_major	last_status	last_timestamp	receipt	lineage_id	scanned_at
+mech-atlas	mech-atlas	机械装备 3D 剖解	output	2026-10-25	0	L1	0	0	0	keep	2026-10-25T18:25	stale	pgn-202610310156-56f2	2026-10-31T08:55
+novel-writing	novel-writing	长篇小说创作	text	2026-10-17	0	L1	0	0	0	note	2026-10-17T00:00Z	missing	pgn-202610310156-8dfb	2026-10-31T08:55
+pangu-create	pangu-create	元技能·skill锻造	text	2026-10-04	5	L3	4	0	0	update	2026-10-31T03:40	fresh	pgn-202610310156-8c81	2026-10-31T08:55
+csv-viz	skills/csv-viz	数据可视化网页	output	2026-10-21	0	L1	0	0	0	PASS	2026-10-21T23:35	missing	pgn-202610310156-04fd	2026-10-31T08:55
+html-to-video	skills/html-to-video	HTML 转视频	output	2026-10-02	0	L1	1	0	0	update	2026-10-22T10:10	missing	pgn-202610310156-f1d5	2026-10-31T08:55
+knowledge-cards	skills/knowledge-cards	知识卡片	output	2026-10-04	0	L1	2	0	0	update	2026-10-22T09:30	missing	pgn-202610310156-772c	2026-10-31T08:55
+photoreal-product	skills/photoreal-product	摄影级产品页	output	2026-10-21	0	L1	0	0	0	fix	2026-10-21	missing	pgn-202610310156-487c	2026-10-31T08:55
+polished-3d-game	skills/polished-3d-game	3D 游戏	output	2026-10-22	0	L1	0	0	0	update	2026-10-23T01:15	missing	pgn-202610310156-b9c6	2026-10-31T08:55
+threejs-web	skills/threejs-web	3D 网页	output	2026-10-02	0	L1	0	0	0	fix	2026-10-21T13:12	missing	pgn-202610310156-3b9c	2026-10-31T08:55
+web-game-craft	web-game-craft	网页游戏	output	2026-10-14	0	L1	0	0	0	keep	2026-10-16T12:00	missing	pgn-202610310156-9371	2026-10-31T08:55
+(未登记)	research/darwin-src	-	-	-	-	-	-	-	-	-	-	-	-	2026-10-31T08:55
+(未登记)	research/nuwa-src	-	-	-	-	-	-	-	-	-	-	-	-	2026-10-31T08:55

@@ -164,9 +164,11 @@ Phase 2: ...
 ```markdown
 # 质量维度卡（负重维度，八维模型见 quality-dimensions.md）
 
-| 负重维度 | 继承的解法（来自谁） | 本 skill 的标准/铁律 | 差异化声明 | 落点（F3 后回填） |
-|---------|-------------------|-------------------|-----------|-----------------|
+| 负重维度 | 本质约束（第一性） | 继承的解法（来自谁） | 本 skill 的标准/铁律 | 差异化声明 | 落点（F3 后回填） |
+|---------|-------------------|-------------------|-----------|---------|-----------------|
 ```
+
+（与 forge.md §2.0 同列结构：本质约束列服务第一性回问，落点列供多维覆盖检查核对。）
 
 ## 七点六、设计论点档案（references/design-thesis.md，产出型必做）
 
@@ -254,17 +256,26 @@ Phase 2: ...
 | 招牌手法 | ① … ② … | 非默认，一眼可指 |
 ```
 
+## 七点九、领域档案（craft-atlas.md 注册节，F5 出厂/E4 回填时写）
+
+> 完整 9 字段注册格式与回填闸见 [craft-atlas.md](craft-atlas.md) 开头。速记版：
+> North Star 参照物｜参数基准（≥5 项带数值 + **证据指针**）｜独有手法｜反模式｜A 层专属调研维度｜典型剧本｜下游 skill 索引｜辨识度测试｜更新历史。
+> 参数只收「实测/盲评背书」的，落盘位置唯一（craft-atlas.md 对应节），下游索引与 registry.tsv 互为镜像。
+
 ## 八、交付包清单（F5 收尾展示给用户）
 
 ```
 ✅ [skill-name]/ 交付包
 ├── SKILL.md              [N 行，静态自检 N/N PASS]
+├── pangu.json            [血统清单：lineage_id / domain / generation / depth]（技能群管理锚点）
+├── feedback/inbox.tsv    [反馈收件箱已就位（进化契约 #8）]
 ├── test-prompts.json     [3 道测试题]
 ├── scripts/              [N 个黑盒脚本 + 一键 verify/finalize]
 ├── examples/             [产出型：N 件可打开范例]
 ├── assets/showcase/      [产出型：1 件署名作品 + hero]
 └── references/           [design-thesis.md + art-direction.md + kernel.md（含质量维度卡）+ research/ + 按需参考]
 
+技能群注册：registry.py --sync ✅（domain=[craft-atlas 节名]；新领域节已注册 ✅）
 多维覆盖：负重维度 [N] 个全部有落点 ✅（未覆盖的非负重维度已写入诚实边界）
 验证矩阵：[逐维度验证方式与结果；无法验证的维度已标注原因]
 深度等级：[L1 框架级 / L2 工程级 / L3 专家级]（晋升路径见 forge.md E4）

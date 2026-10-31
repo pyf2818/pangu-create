@@ -9,11 +9,16 @@
 
 *A meta-skill that forges any domain into a verifiable, evolvable Agent Skill.*
 
-[![version](https://img.shields.io/badge/version-1.3.0-C8955A?style=flat-square)](https://github.com/pyf2818/pangu-create/releases)
+**🩸 技能群管理** — 锻造出的每个 skill 带血统清单（`pangu.json`），`registry.py` 一键盘点全群，孤儿无所遁形
+**📬 自动进化触发** — 每个 skill 自带反馈收件箱（`feedback/inbox.tsv`），open 的 blocker/major = 强制进化轮，不靠记忆靠落箱
+**🔒 全链路机器闸门** — 测试题先行 / 新鲜回执双哈希绑定 / 读有闸写也有闸——伪造、过期、空壳证据一律拒绝
+
+[![version](https://img.shields.io/badge/version-1.4.0-C8955A?style=flat-square)](https://github.com/pyf2818/pangu-create/releases)
 [![license](https://img.shields.io/badge/license-MIT-3B82F6?style=flat-square)](LICENSE)
 [![python](https://img.shields.io/badge/python-3.9%2B-3776AB?style=flat-square)](scripts)
 [![Agent Skill](https://img.shields.io/badge/Agent%20Skill-compatible-8B5CF6?style=flat-square)](#快速开始)
 [![static check](https://img.shields.io/badge/static%20check-11%2F11-22C55E?style=flat-square)](#脚本)
+[![behavior receipt](https://img.shields.io/badge/behavior%20receipt-5%20suites%20%C2%B7%2061%20assertions-16A34A?style=flat-square)](#可执行闸门)
 
 [快速开始](#快速开始) · [怎么用](#怎么用) · [质量体系](#质量体系) · [进化循环](#进化循环) · [FAQ](#faq) · [已知局限](#已知局限)
 
@@ -32,6 +37,7 @@
 
 - [它解决什么问题](#它解决什么问题)
 - [核心主张](#核心主张)
+- [v1.4.0 招牌机制](#v140-招牌机制)
 - [两条管线](#两条管线)
 - [快速开始](#快速开始)
 - [一句话生成的作品](#一句话生成的作品)
@@ -63,6 +69,8 @@
 | **自评自证** | 「我看了没问题」当作证据 | 独立 judge 盲评，作者不得自证 |
 | **一次成型** | 交付即终点，问题不回流 | 出生即进化：`results.tsv` + paired 棘轮 + E4 回流 |
 | **没有基线** | 声称「更好」，却没见过不带 skill 的样子 | 测试题先行，先跑 baseline 再谈改进 |
+| **技能失联** | 造出的 skill 散落各处，没人知道有哪些、多深、哪里疼 | 血统清单 `pangu.json` + `registry.py` 注册表：代次/深度/账本/反馈/回执新鲜度一键盘点，孤儿检测 |
+| **问题失传** | 用户抱怨「记住了」，会话结束即失传，同坑反复踩 | 反馈收件箱 `feedback/inbox.tsv`：当场落行，open 的 blocker/major = **强制进化触发器**（进化契约 #8） |
 
 一句话：**文本分不等于作品分，文档合规不等于发布级。**
 
@@ -85,6 +93,26 @@
    核心生成与校验落进 `scripts/`，一键 `verify` / `finalize`。换模型不漂移，换人也能复现。
 
 这三样东西在立项阶段就写入 `references/design-thesis.md`，由可执行闸门 `scripts/verify_skill.py` 卡住——不是靠模型自觉。
+
+
+---
+
+## v1.4.0 招牌机制（技能群管理与自动进化）
+
+> 锻造只是起点。v1.4.0 让「盘古造的 skill」从散落的目录变成**有关联、可盘点、会自动求救**的资产群。
+
+| 机制 | 载体 | 一句话 |
+|---|---|---|
+| 🩸 **血统清单** | `pangu.json` | lineage_id / 领域 / 代次（generation）/ 深度（L1-L3）随 skill 出厂；存量 skill 用 `--adopt` 一条命令补登记（只加文件不动其他） |
+| 📬 **反馈收件箱** | `feedback/inbox.tsv` | 使用中的问题**当场落行**；open 的 blocker/major = 强制进化触发器（进化契约 #8），修复后 resolved 并贴证据——不靠记忆，靠落箱 |
+| 🗂️ **技能群注册表** | `scripts/registry.py` | 一键扫描：代次 / 深度 / worse 数 / open 反馈 / 回执新鲜度（fresh-stale-missing，双哈希比对）+ **孤儿检测**；`--strict` 退出码可接 CI 巡检 |
+
+```bash
+python scripts/registry.py <工作区根> --sync     # 生成 registry.tsv + 打印技能群总览
+python scripts/registry.py <工作区根> --strict   # 有 open blocker/major 或孤儿 → exit 1（巡检用）
+```
+
+本仓库自举验证（盘古吃自己的狗粮）：10 个 skill（9 个锻造产物 + 盘古自身）全部登记，注册表见 [registry.tsv](registry.tsv)；守护自身文档口径的 `docs-consistency` 套件 11 项断言，与行为回执共 **5 套件 / 61 项断言**全绿（rubric 自动分 75/75 打满，D8 实测与 D10 品味按设计留人工）。
 
 ---
 
@@ -141,6 +169,9 @@ python pangu-create/scripts/quality_check.py pangu-create/SKILL.md
 
 python pangu-create/scripts/rubric_score.py pangu-create/SKILL.md
 # 自动文档结构分，满分 75（type=text 自动探测；D8 实测 19 分 + D10 品味 6 分必须人工，不得用关键词替代）
+
+python pangu-create/scripts/verify_skill.py pangu-create --type text --check
+# 行为回执核验：5 套件（工具回归/对抗注入/脚手架契约/技能群注册/文档口径守卫）
 ```
 
 安装完成后，直接对 Agent 说：
@@ -149,7 +180,7 @@ python pangu-create/scripts/rubric_score.py pangu-create/SKILL.md
 盘古开天，帮我做一个把长文自动拆成短视频分镜的 skill
 ```
 
-或使用任意旧触发词：「造skill」「创建skill」「把XX做成skill」「蒸馏成skill」「优化skill」「给skill打分」「skill体检」。
+或使用任意旧触发词：「造skill」「创建skill」「把XX做成skill」「蒸馏成skill」「优化skill」「给skill打分」「skill体检」「技能群」「skill注册表」。
 
 ---
 
@@ -281,6 +312,18 @@ python scripts/verify_skill.py my-skill --type output --check
 
 结构闸门（论点 / 范例 / 署名作品 / 承诺→测试 ID 绑定）任一 FAIL 即 `exit 1`；行为闸门以新鲜回执为准。**两层的结论不得互相替代。**
 
+### 技能群管理与自动进化（v1.4.0）
+
+| 机制 | 说明 |
+|---|---|
+| **血统清单** `pangu.json` | 锻造/补登记的每个 skill 都带血统（lineage_id / domain / generation / depth），与盘古关联管理；`--adopt` 给存量 skill 补登记 |
+| **反馈收件箱** `feedback/inbox.tsv` | 使用中遇到问题**当场落行**；open 的 blocker/major = **强制进化触发器**（进化契约 #8）——不靠记忆，靠落箱 |
+| **注册表** `registry.py --sync` | 一键扫描工作区：代次/深度/worse/open 反馈/回执新鲜度 + 孤儿检测；`--strict` 退出码可接 CI 巡检 |
+
+```bash
+python scripts/registry.py <工作区根> --sync   # 生成/刷新 registry.tsv 并打印技能群总览
+```
+
 ---
 
 ## 脚本
@@ -294,6 +337,7 @@ python scripts/verify_skill.py my-skill --type output --check
 | `rubric_score.py` | 11 维 rubric 自动评分（1-7/9/11，满分 75；D8/D10 人工） | `python scripts/rubric_score.py my-skill/SKILL.md --json` |
 | `verify_skill.py` | 结构预检 / 行为执行 / 回执核验（`--execute` / `--check`） | `python scripts/verify_skill.py my-skill --type output --execute` |
 | `analyze_evolution.py` | 进化趋势 + 数据质量警告（缺少 full_test / 无表头 / 短行） | `python scripts/analyze_evolution.py my-skill/results.tsv` |
+| `registry.py` | 技能群注册表：扫描 pangu.json 血统 / results.tsv 账本 / feedback 收件箱 / 回执新鲜度，孤儿检测 | `python scripts/registry.py <工作区根> --sync [--json] [--strict]` |
 
 `rubric_score.py --json` 输出纯 JSON；`verify_skill.py --json` 输出机器可读结果，均可用于 CI。CI 中若只跑默认结构模式，结论只能写「结构预检通过」。
 
@@ -437,6 +481,8 @@ pangu-create/
 - **找不到顶级参照物时**，产出质量第一关只能降级，成品上限随之降低
 - **触发可靠性受运行时 skill 发现机制影响**，description 迭代只能提高概率
 - **蒸馏真人思维或私有流程**时，素材合法性与授权由用户负责
+- **registry.py 只扫用户给的扫描根**：跨工作区/已安装副本扫不到；注册表是派生缓存，--sync 后的变动到下次扫描才反映
+- **反馈收件箱靠执行 agent 的当场纪律**：闸门只能在巡检时发现「缺收件箱/open 反馈」，漏记靠定期巡检兜底
 - **历史案例未全部迁移到 v1.3 回执机制**：本仓库内 `skills/` 的旧案例仍保留历史证据，但不能冒充当前新鲜回执
 
 ---

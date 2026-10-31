@@ -8,6 +8,10 @@ python verify_skill.py <skill-dir> --execute [--suite ID] [--json]
 Exit codes: 0 requested checks passed / 1 product or contract failure / 2 usage or
 execution environment failure. Default mode is structural only, never a release
 certification. --check validates a fresh report; --execute runs trusted local scripts.
+
+Source fingerprint excludes non-behavior artifacts: evidence/, feedback/ (inbox),
+results.tsv, pangu.json, registry.tsv — appending usage feedback or syncing the
+registry never invalidates a receipt; changing behavior-bearing files always does.
 """
 
 import argparse
@@ -30,7 +34,8 @@ IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".avif"}
 WORK_EXTS = {".html", ".htm", ".js", ".mjs", ".py", ".ts", ".tsx", ".jsx",
              ".md", ".json", ".glb", ".gltf", ".mp4", ".webm", ".svg", ".pdf"}
 CORE_NAME = re.compile(r"(verify|finalize|build|validate|check|qa|score|inspect)", re.IGNORECASE)
-IGNORED_PARTS = {".git", ".omc", "__pycache__", "evidence", "artifacts", "node_modules"}
+IGNORED_PARTS = {".git", ".omc", "__pycache__", "evidence", "artifacts", "node_modules", "feedback"}
+IGNORED_NAMES = {"results.tsv", "pangu.json", "registry.tsv"}
 INJECTION_KINDS = {
     "dependency_unavailable", "extreme_input", "environment_missing",
     "tooling_failure", "invalid_evidence",
@@ -62,7 +67,7 @@ def source_fingerprint(root):
     digest = hashlib.sha256()
     files = sorted(p for p in root.rglob("*") if p.is_file()
                    and not (set(p.relative_to(root).parts) & IGNORED_PARTS)
-                   and p.name != "results.tsv")
+                   and p.name not in IGNORED_NAMES)
     for path in files:
         relative = path.relative_to(root).as_posix().encode("utf-8")
         digest.update(len(relative).to_bytes(4, "big") + relative)
@@ -239,12 +244,43 @@ def gate_thesis(root):
     competition = section(text, "竞争测试")
     if not competition or "TODO" in competition:
         issues.append("竞争测试材料未完成")
-    elif not re.search(r"不成立|不通过|只有本|说不出", competition):
-        issues.append("竞争测试未给出明确结论；语义仍需独立评审")
+    else:
+        if not re.search(r"不成立|不通过|只有本|说不出", competition):
+            issues.append("竞争测试未给出明确结论；语义仍需独立评审")
+        # 现场可复核证据：竞争测试至少一行给出实测/参数对照的证据落点（路径/命令/数值），
+        # 防止「无人值守空转、无任何闸门报警」复发（forge.md 第一性回问的教训）
+        evidence_line = re.search(r"现场可复核证据[^\n]*", competition)
+        if not evidence_line:
+            issues.append("竞争测试缺「现场可复核证据」行")
+        else:
+            line = evidence_line.group(0)
+            if "TODO" in line or not re.search(r"`[^`]+`|\d+(\.\d+)?|\.md|\.json|\.tsv|\.log|/[A-Za-z0-9_./-]+", line.replace("现场可复核证据", "")):
+                issues.append("竞争测试「现场可复核证据」行无落点（需路径/命令/实测数值）")
     materials = re.findall(r"^\|\s*\d+\s*\|", section(text, "独有素材") or text, re.MULTILINE)
     if len(materials) < 8:
         issues.append(f"独有素材 {len(materials)} 条（需 ≥8）")
     return not issues, "；".join(issues) if issues else "论点材料齐全；原创性与竞争结论需独立评审"
+
+
+def gate_sibling(root):
+    """吸收表闸门（读有闸、写也有闸）：04-sibling-skills.md 存在时，必须真有吸收内容。
+
+    快速蒸馏模式允许无此文件（参照物即同类）；一旦落盘就必须是可核查的吸收表，
+    不能是只有标题的空壳。"""
+    path = root / "references" / "research" / "04-sibling-skills.md"
+    if not path.exists():
+        return True, "无吸收表（快速蒸馏模式合法；标准档锻造不许缺）"
+    text = path.read_text(encoding="utf-8", errors="replace")
+    if "TODO" in text:
+        return False, "吸收表仍有 TODO"
+    rows = [line for line in text.splitlines()
+            if line.strip().startswith("|") and not re.fullmatch(r"[\s|:\-]+", line.strip())]
+    data_rows = [r for r in rows if "来源" not in r and "吸收方式" not in r]
+    if len(data_rows) < 1:
+        return False, "吸收表无数据行（存在却空壳 = 空转侦察）"
+    if "吸收方式" not in text or not re.search(r"直接吸收|改造吸收|反着用", text):
+        return False, "吸收表缺「吸收方式」（直接吸收/改造吸收/反着用 三选一）"
+    return True, f"吸收表 {len(data_rows)} 行，含吸收方式标注"
 
 
 def gate_examples(root):
@@ -416,6 +452,7 @@ def main():
              ("承诺绑定", *gate_promise(root))]
     if args.type == "output":
         gates[1:1] = [("论点材料", *gate_thesis(root)),
+                      ("吸收表", *gate_sibling(root)),
                       ("范例材料", *gate_examples(root)),
                       ("署名作品", *gate_signature(root))]
     else:
