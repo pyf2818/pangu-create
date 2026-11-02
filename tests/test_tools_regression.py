@@ -42,6 +42,22 @@ class EvidencePortabilityTest(unittest.TestCase):
             after = verify_skill.contract_digest(root)
             self.assertEqual(before, after)
 
+    def test_sorting_order_is_deterministic_across_platforms(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "SKILL.md").write_text("# demo\n", encoding="utf-8")
+            (root / "assets").mkdir()
+            (root / "assets" / "banner.svg").write_text("<svg></svg>\n", encoding="utf-8")
+            (root / "CHANGELOG.md").write_text("# changelog\n", encoding="utf-8")
+            (root / "scripts").mkdir()
+            (root / "scripts" / "run.py").write_text("print(1)\n", encoding="utf-8")
+            fp, count = verify_skill.source_fingerprint(root)
+            self.assertEqual(count, 4)
+            # 验证无论 Windows 还是 POSIX，文件遍历都统一按照 POSIX 字符串序排序
+            files = sorted((p for p in root.rglob("*") if p.is_file()), key=lambda p: p.relative_to(root).as_posix())
+            posix_rel = [p.relative_to(root).as_posix() for p in files]
+            self.assertEqual(posix_rel, ["CHANGELOG.md", "SKILL.md", "assets/banner.svg", "scripts/run.py"])
+
 
 class RubricTypeDetectionTest(unittest.TestCase):
     """分型探测：元技能自述（frontmatter）必须压过 showcase 资产存在（v1.4.0 实测坑）。"""

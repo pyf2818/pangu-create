@@ -38,7 +38,7 @@ IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".avif"}
 WORK_EXTS = {".html", ".htm", ".js", ".mjs", ".py", ".ts", ".tsx", ".jsx",
              ".md", ".json", ".glb", ".gltf", ".mp4", ".webm", ".svg", ".pdf"}
 CORE_NAME = re.compile(r"(verify|finalize|build|validate|check|qa|score|inspect|lint)", re.IGNORECASE)
-IGNORED_PARTS = {".git", ".omc", "__pycache__", "evidence", "artifacts", "node_modules", "feedback"}
+IGNORED_PARTS = {".git", ".github", ".omc", "__pycache__", "evidence", "artifacts", "node_modules", "feedback"}
 IGNORED_NAMES = {"results.tsv", "pangu.json", "registry.tsv"}
 INJECTION_KINDS = {
     "dependency_unavailable", "extreme_input", "environment_missing",
@@ -69,9 +69,10 @@ def normalized_bytes(path):
 
 def source_fingerprint(root):
     digest = hashlib.sha256()
-    files = sorted(p for p in root.rglob("*") if p.is_file()
-                   and not (set(p.relative_to(root).parts) & IGNORED_PARTS)
-                   and p.name not in IGNORED_NAMES)
+    files = sorted((p for p in root.rglob("*") if p.is_file()
+                    and not (set(p.relative_to(root).parts) & IGNORED_PARTS)
+                    and p.name not in IGNORED_NAMES),
+                   key=lambda p: p.relative_to(root).as_posix())
     for path in files:
         relative = path.relative_to(root).as_posix().encode("utf-8")
         digest.update(len(relative).to_bytes(4, "big") + relative)

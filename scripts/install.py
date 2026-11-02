@@ -48,7 +48,7 @@ RUNTIME_TARGETS = {
     "codex": Path(".codex") / "skills",
 }
 
-SKIP_PARTS = {".git", ".omc", "__pycache__", "node_modules", "snapshots", "_ci_installed_skills"}
+SKIP_PARTS = {".git", ".github", ".omc", "__pycache__", "node_modules", "snapshots", "_ci_installed_skills"}
 
 
 def resolve_target_roots(target: str, dest: str | None, home: Path | None = None) -> list[Path]:

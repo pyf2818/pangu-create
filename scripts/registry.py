@@ -56,7 +56,7 @@ REGISTRY_COLUMNS = [
 
 def find_skill_dirs(root: Path, max_depth: int):
     """返回 (registered, orphans)；registered=有 pangu.json 的目录，orphans=只有 SKILL.md 的目录。跳过隐藏/虚拟环境/证据目录。"""
-    skip_parts = {".git", ".omc", "__pycache__", "node_modules", "evidence", "artifacts", "_snap", ".venv", "venv", "research", "fixtures"}
+    skip_parts = {".git", ".github", ".omc", "__pycache__", "node_modules", "evidence", "artifacts", "_snap", ".venv", "venv", "research", "fixtures"}
     registered, orphans = [], []
     root = root.resolve()
 
