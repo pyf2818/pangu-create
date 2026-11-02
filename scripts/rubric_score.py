@@ -29,6 +29,7 @@ import json
 import re
 import sys
 from pathlib import Path
+from typing import Optional
 
 try:
     sys.stdout.reconfigure(encoding="utf-8")
@@ -121,7 +122,7 @@ def _strip_anti_sections(body: str) -> str:
 # 各维度评分函数：返回 (分数 1-10, 理由)
 # ═══════════════════════════════════════════════════════════════════════════
 
-def score_dim1_frontmatter(fm: str | None, content: str):
+def score_dim1_frontmatter(fm: Optional[str], content: str):
     """维度1 Frontmatter 质量（权重7）"""
     if fm is None:
         return 1, "无 frontmatter"
@@ -312,7 +313,7 @@ def score_dim5_specificity(body: str):
     return score, "; ".join(reasons)
 
 
-def score_dim6_resources(md_path: Path, body: str, fm: str | None, skill_type: str = "output"):
+def score_dim6_resources(md_path: Path, body: str, fm: Optional[str], skill_type: str = "output"):
     """维度6 资源整合度（权重4）"""
     text = (fm or "") + "\n" + body
     root = md_path.parent
@@ -535,7 +536,7 @@ def score_dim11_insight(md_path: Path, body: str, skill_type: str = "output"):
 # 运行时中立性红灯扫描（gate 项）
 # ═══════════════════════════════════════════════════════════════════════════
 
-def scan_runtime_neutrality(body: str, fm: str | None):
+def scan_runtime_neutrality(body: str, fm: Optional[str]):
     """扫描运行时中立性红灯。返回 (命中数, 命中行列表)"""
     text = (fm or "") + "\n" + body
     red_patterns = [

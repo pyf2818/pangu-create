@@ -27,6 +27,7 @@ import shutil
 import sys
 from datetime import datetime
 from pathlib import Path
+from typing import List, Optional
 
 try:
     sys.stdout.reconfigure(encoding="utf-8")
@@ -51,7 +52,7 @@ RUNTIME_TARGETS = {
 SKIP_PARTS = {".git", ".github", ".omc", "__pycache__", "node_modules", "snapshots", "_ci_installed_skills"}
 
 
-def resolve_target_roots(target: str, dest: str | None, home: Path | None = None) -> list[Path]:
+def resolve_target_roots(target: str, dest: Optional[str], home: Optional[Path] = None) -> List[Path]:
     if dest:
         return [Path(dest).resolve()]
     home_dir = home or Path.home()

@@ -30,6 +30,7 @@ import shutil
 import sys
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
 
 try:
     sys.stdout.reconfigure(encoding="utf-8")
@@ -150,7 +151,7 @@ def read_inbox(skill_dir: Path):
     return counts, warns
 
 
-def seal_status(skill_dir: Path, manifest: dict | None):
+def seal_status(skill_dir: Path, manifest: Optional[dict]):
     """检查 SKILL.md 末尾是否有盘古印记区块 + feedback/log.py 工具是否就位。
     返回 (status, warnings)，status ∈ ok / missing / mismatch / no-tool。
     """

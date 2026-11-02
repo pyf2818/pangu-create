@@ -14,6 +14,7 @@
 import re
 import sys
 from pathlib import Path
+from typing import Optional
 
 try:
     sys.stdout.reconfigure(encoding="utf-8")
@@ -33,7 +34,7 @@ def split_frontmatter(content: str):
     return parts[1], parts[2]
 
 
-def check_frontmatter(fm: str | None, content: str):
+def check_frontmatter(fm: Optional[str], content: str):
     if fm is None:
         return False, "未找到 YAML frontmatter"
     name_m = re.search(r"^name:\s*([^\s]+)", fm, re.MULTILINE)
@@ -139,7 +140,7 @@ KNOWN_EXT = (".md", ".json", ".py", ".sh", ".js", ".mjs", ".html", ".csv")
 RESOURCE_DIRS = ("references/", "scripts/", "assets/", "templates/")
 
 
-def check_resources(md_path: Path, body: str, fm: str | None):
+def check_resources(md_path: Path, body: str, fm: Optional[str]):
     """只检查真实指令性引用：markdown 链接 + 「读/见/运行 X」句式中的路径。
     「产出/写入/存入 X」是对目标 skill 生成产物的描述，不属于本 skill 的资源依赖（假阳性）。"""
     text = (fm or "") + "\n" + body
