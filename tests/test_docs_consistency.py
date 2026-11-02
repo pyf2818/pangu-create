@@ -8,6 +8,7 @@ F0.5 命名、质量维度卡列漂移、迭代轮数上下限冲突、配方数
 跳读」时的执行分叉点。本文件把这些已修复的漂移固化为机器断言，复发即 FAIL。
 """
 
+import json
 import re
 import sys
 import unittest
@@ -110,6 +111,34 @@ class InboxAndRegistryContractTest(unittest.TestCase):
         self.assertEqual(manifest["forged_by"], "pangu-create")
         self.assertIn(manifest["pangu_version"], read("pangu.json"),
                       "scaffold PANGU_VERSION 与盘古自身 pangu.json 声明不一致")
+
+    def test_anti_patterns_and_changelog_are_reachable_and_sealed(self):
+        anti = read("references", "anti-patterns.md")
+        for n in (1, 19, 24, 31, 32, 33, 34):
+            self.assertRegex(anti, rf"(?m)^\|\s*{n}\s*\|", f"references/anti-patterns.md 缺 AP-{n}")
+        self.assertTrue((ROOT / "CHANGELOG.md").is_file(), "缺 CHANGELOG.md")
+        self.assertIn("为提高自测分去改评分器", EVOLVE, "evolve.md 缺反古德哈特禁令")
+        self.assertEqual(registry.seal_status(ROOT, json.loads(read("pangu.json")))[0], "ok",
+                         "盘古自身 SKILL.md 盘古印记或 feedback/log.py 未就位")
+
+    def test_tiered_checkpoints_three_judge_and_self_contained_prompts(self):
+        self.assertIn("next_step.py", SKILL)
+        self.assertIn("next_step.py", FORGE)
+        self.assertIn("仅首尾 2 个硬阻塞", SKILL)
+        self.assertIn("3-Judge 异构职责盲评", SKILL)
+        self.assertIn("3-Judge 异构职责盲评", TESTING)
+        self.assertIn(">10%", TESTING)
+        self.assertIn("3-Judge 异构职责盲评", EVOLVE)
+        prompts = json.loads(read("test-prompts.json"))
+        self.assertIn("tests/fixtures/mini-threejs", prompts[1]["prompt"])
+        self.assertTrue((ROOT / "tests" / "fixtures" / "mini-threejs" / "SKILL.md").is_file())
+        self.assertTrue((ROOT / ".github" / "workflows" / "ci.yml").is_file())
+        self.assertTrue((ROOT / "scripts" / "install.py").is_file())
+        self.assertTrue((ROOT / "assets" / "showcase" / "pangu-demo.gif").is_file())
+        self.assertTrue((ROOT / "assets" / "showcase" / "pangu-demo.svg").is_file())
+        readme = read("README.md")
+        self.assertIn("assets/showcase/pangu-demo.gif", readme)
+        self.assertIn("scripts/install.py", readme)
 
 
 if __name__ == "__main__":

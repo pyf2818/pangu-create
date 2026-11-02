@@ -103,6 +103,33 @@ class RubricHonestyTest(unittest.TestCase):
         self.assertIsNone(score, reason)
         self.assertIn("人工", reason)
 
+    def test_platitude_failure_rows_do_not_earn_ten(self):
+        platitude_body = (
+            "## 失败处理\n"
+            "| 触发条件 | 一线修复 | 仍失败兜底 |\n"
+            "|---|---|---|\n"
+            "| 网络请求失败 | 重试一次 | 提示用户检查网络并报错 |\n"
+            "| 接口调用超时 | 重新尝试请求 | 告知用户稍后再试 |\n"
+            "| 返回数据异常 | 检查网络连接 | 手动处理并提示用户 |\n"
+        )
+        score, reason = rubric_score.score_dim3_failure(platitude_body)
+        self.assertLessEqual(score, 7, f"套话三段式不应拿满分: {score} ({reason})")
+        self.assertIn("套话", reason)
+
+    def test_concrete_failure_rows_earn_ten(self):
+        concrete_body = (
+            "## 失败降级（如果解析失败则触发三段式恢复）\n"
+            "| 触发条件 | 一线修复 | 仍失败兜底 |\n"
+            "|---|---|---|\n"
+            "| CSV 含 GBK 或 BOM 解码失败 | 自动回退 utf-8-sig -> gb18030 解码 | 写入 fallback.html 诊断页并退出码 1 |\n"
+            "| vendor/chart.umd.js 加载失败 | 切换内置 SVG 降级渲染器 | 输出 JSON 错误码 2，禁止裸 Traceback |\n"
+            "| 数据行数 > 10000 渲染失败 | 关闭入场动画（duration=0）并按时间桶聚合 | 仅渲染前 5000 行并在页眉横幅明示采样率 |\n"
+            "| 数值列全为文本解析失败 | 跳过数值聚合，切换频次统计条形图 | 生成 fallback.html 说明缺失列 |\n"
+            "| 输出目录写入失败 | 自动回退至系统临时目录 tempfile | 打印完整目标路径并以 exit 2 退出 |\n"
+        )
+        score, reason = rubric_score.score_dim3_failure(concrete_body)
+        self.assertEqual(score, 10, f"具体机制恢复分支应拿 10 分: {score} ({reason})")
+
 
 class LedgerParsingTest(unittest.TestCase):
     def write(self, text):
@@ -156,6 +183,26 @@ class LedgerParsingTest(unittest.TestCase):
         records, error, warnings = analyze_evolution.parse_tsv(path)
         self.assertEqual(records, [])
         self.assertTrue(error)
+
+    def test_normalize_tsv_repairs_legacy_and_extra_tabs(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            tsv = root / "results.tsv"
+            tsv.write_text(
+                "2026-10-14T00:00\tbaseline\tdemo\t-\t79.3\tkeep\tall\t初始\t-\n"
+                "2026-10-16T12:00\tabc123\tdemo\t79.3\t86.3\tkeep\tD8\t修复说明\t带额外制表符\tpaired\tlogs/e.json\n",
+                encoding="utf-8",
+            )
+            res = analyze_evolution.normalize_tsv(tsv)
+            self.assertTrue(res["changed"])
+            self.assertEqual(res["rows"], 2)
+            self.assertTrue(Path(res["backup"]).is_file())
+            records, error, warnings = analyze_evolution.parse_tsv(tsv)
+            self.assertIsNone(error)
+            self.assertEqual(warnings, [])
+            self.assertEqual(len(records), 2)
+            self.assertEqual(records[0]["evidence"], "-")
+            self.assertIn("logs/e.json", records[1]["eval_mode"])
 
 
 class AnalyzerEvidenceTest(unittest.TestCase):

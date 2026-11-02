@@ -1,0 +1,129 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 440" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0B0E14"/>
+      <stop offset="100%" stop-color="#131824"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#C8955A"/>
+      <stop offset="50%" stop-color="#E5B97F"/>
+      <stop offset="100%" stop-color="#22C55E"/>
+    </linearGradient>
+    <style>
+      .mono { font-family: 'JetBrains Mono', 'Cascadia Code', 'Fira Code', Consolas, monospace; font-size: 13.5px; }
+      .title { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; font-weight: 700; }
+      .sub { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; }
+      .scene1, .scene2, .scene3, .scene4 { opacity: 0; }
+      .scene1 { animation: fade1 30s infinite; }
+      .scene2 { animation: fade2 30s infinite; }
+      .scene3 { animation: fade3 30s infinite; }
+      .scene4 { animation: fade4 30s infinite; }
+      .bar { animation: prog 30s linear infinite; }
+      .tab1 { animation: tab1a 30s infinite; }
+      .tab2 { animation: tab2a 30s infinite; }
+      .tab3 { animation: tab3a 30s infinite; }
+      .tab4 { animation: tab4a 30s infinite; }
+      @keyframes fade1 { 0%, 2% { opacity: 1; } 23% { opacity: 1; } 25%, 100% { opacity: 0; } }
+      @keyframes fade2 { 0%, 24% { opacity: 0; } 26%, 48% { opacity: 1; } 50%, 100% { opacity: 0; } }
+      @keyframes fade3 { 0%, 49% { opacity: 0; } 51%, 73% { opacity: 1; } 75%, 100% { opacity: 0; } }
+      @keyframes fade4 { 0%, 74% { opacity: 0; } 76%, 98% { opacity: 1; } 100% { opacity: 0; } }
+      @keyframes prog { 0% { width: 0px; } 100% { width: 912px; } }
+      @keyframes tab1a { 0%, 24% { fill: #C8955A; } 25%, 100% { fill: #64748B; } }
+      @keyframes tab2a { 0%, 24% { fill: #64748B; } 25%, 49% { fill: #C8955A; } 50%, 100% { fill: #64748B; } }
+      @keyframes tab3a { 0%, 49% { fill: #64748B; } 50%, 74% { fill: #C8955A; } 75%, 100% { fill: #64748B; } }
+      @keyframes tab4a { 0%, 74% { fill: #64748B; } 75%, 100% { fill: #C8955A; } }
+    </style>
+  </defs>
+
+  <!-- Window Frame -->
+  <rect x="4" y="4" width="952" height="432" rx="12" fill="url(#bg)" stroke="#262F45" stroke-width="1.5"/>
+  <rect x="4" y="4" width="952" height="42" rx="12" fill="#161C2A"/>
+  <rect x="4" y="34" width="952" height="12" fill="#161C2A"/>
+  <line x1="4" y1="46" x2="956" y2="46" stroke="#262F45" stroke-width="1"/>
+
+  <!-- Window Dots -->
+  <circle cx="26" cy="25" r="6" fill="#EF4444"/>
+  <circle cx="46" cy="25" r="6" fill="#F59E0B"/>
+  <circle cx="66" cy="25" r="6" fill="#22C55E"/>
+
+  <!-- Step Indicator Tabs -->
+  <text x="105" y="30" class="title tab1" font-size="12.5">① 一句话立项 · 阶段状态机</text>
+  <text x="295" y="30" class="title tab2" font-size="12.5">② 双哈希闸门 · 3-Judge 盲评</text>
+  <text x="505" y="30" class="title tab3" font-size="12.5">③ 盘古印记 · 现场落箱进化</text>
+  <text x="705" y="30" class="title tab4" font-size="12.5">④ 技能群总览 · 跨副本同步</text>
+
+  <!-- ==================== SCENE 1 (0 - 7.5s) ==================== -->
+  <g class="scene1">
+    <text x="32" y="82" class="mono" fill="#C8955A">$ &gt; "盘古开天，帮我做一个把任意 CSV 变成离线可寄出交互图表的 skill"</text>
+    <text x="32" y="110" class="mono" fill="#38BDF8">$ python scripts/scaffold.py ../skills/csv-viz --name csv-viz --domain "数据可视化网页"</text>
+    <text x="32" y="134" class="mono" fill="#94A3B8">  write pangu.json (lineage=pgn-202610310156-2561, forged_by=pangu-create)</text>
+    <text x="32" y="156" class="mono" fill="#94A3B8">  write feedback/inbox.tsv &amp; feedback/log.py | seal SKILL.md (<!-- pangu:seal v1 -->)</text>
+
+    <text x="32" y="190" class="mono" fill="#38BDF8">$ python scripts/next_step.py ../skills/csv-viz --tier quick</text>
+    <text x="32" y="216" class="mono" fill="#E2E8F0">🧭 阶段导航: csv-viz（type=output, tier=quick · 仅首尾 2 个硬阻塞检查点）</text>
+    <text x="32" y="242" class="mono" fill="#22C55E">  ✅ PASS  [Phase0.5] 第一阶段：理解定义与无 skill 基线（00-positioning.md + baseline.md）</text>
+    <text x="32" y="266" class="mono" fill="#22C55E">  ✅ PASS  [F1      ] 同类侦察与多源调研（04-sibling-skills.md 含直接吸收/改造吸收）</text>
+    <text x="32" y="290" class="mono" fill="#22C55E">  ✅ PASS  [F2      ] 内核提炼与可执行承诺矩阵（design-thesis 竞争测试 + promise-table 4列）</text>
+    <text x="32" y="314" class="mono" fill="#22C55E">  ✅ PASS  [F3      ] 构建 SKILL.md、确定性脚本、3 件可打开范例与署名作品</text>
+    <text x="32" y="338" class="mono" fill="#22C55E">  ✅ PASS  [F3.6    ] 可执行预检与故障注入回执（evidence/verification.json 双哈希 fresh）</text>
+    <text x="32" y="362" class="mono" fill="#22C55E">  ✅ PASS  [F4-F5   ] 独立 3-Judge 盲评测试、首轮进化精炼与技能群注册同步</text>
+    <text x="32" y="392" class="mono" fill="#FACC15">🎉 所有阶段闸门已通过（READY）。日常使用遇到问题请运行 feedback/log.py add 当场落箱。</text>
+  </g>
+
+  <!-- ==================== SCENE 2 (7.5 - 15s) ==================== -->
+  <g class="scene2">
+    <text x="32" y="82" class="mono" fill="#38BDF8">$ python scripts/quality_check.py SKILL.md &amp;&amp; python scripts/verify_skill.py . --type text --execute</text>
+    <text x="32" y="108" class="mono" fill="#22C55E">  ✅ 静态质量自检: 11/11 PASS（正文 451 行 ≤ 500，软化措辞 0 处，D3 反套话检查通过）</text>
+    <text x="32" y="132" class="mono" fill="#22C55E">  ✅ Rubric 自动评分: 75.0 / 75（D8 实测 19 分 + D10 品味 6 分留人工盲评，拒绝关键词刷分）</text>
+    <text x="32" y="162" class="mono" fill="#E2E8F0">🔒 行为与对抗故障注入回执（evidence/verification.json · 双 SHA-256 绑定）：</text>
+    <text x="32" y="188" class="mono" fill="#22C55E">  PASS  [tools-regression ]  18 assertions (CRLF/LF 归一化、D3 套话拦截、账本自动修复)</text>
+    <text x="32" y="212" class="mono" fill="#22C55E">  PASS  [failure-injection]  25 adversarial attacks (伪造/过期/串号回执、shell 注入全拦截)</text>
+    <text x="32" y="236" class="mono" fill="#22C55E">  PASS  [scaffold-contract]   4 assertions (新建占位测试默认 fail，防空手变绿)</text>
+    <text x="32" y="260" class="mono" fill="#22C55E">  PASS  [registry-fleet   ]  13 assertions (盘古印记、跨副本反馈回收、重部署、状态机)</text>
+    <text x="32" y="284" class="mono" fill="#22C55E">  PASS  [docs-consistency ]  13 assertions (跨文档口径漂移机器拦截)</text>
+    <text x="32" y="316" class="mono" fill="#C8955A">⚖️ 3-Judge 异构职责盲评（含正逆序位置交换 · references/research/d8-blind-eval.md）：</text>
+    <text x="32" y="342" class="mono" fill="#E2E8F0">  Judge A (正确性与边界) : 3/3 better  |  Judge B (精简度与 &gt;10% 膨胀惩罚) : 3/3 better</text>
+    <text x="32" y="366" class="mono" fill="#E2E8F0">  Judge C (领域辨识度)   : 3/3 better  →  多数决汇总: 3:0 keep（位置交换零偏差）</text>
+  </g>
+
+  <!-- ==================== SCENE 3 (15 - 22.5s) ==================== -->
+  <g class="scene3">
+    <text x="32" y="82" class="mono" fill="#C8955A"># 子技能被单独调用时，SKILL.md 末尾「盘古印记」在使用现场触发反馈落箱：</text>
+    <rect x="32" y="96" width="896" height="68" rx="6" fill="#161F30" stroke="#334155"/>
+    <text x="46" y="120" class="mono" fill="#E5B97F">&lt;!-- pangu:seal v1 lineage=pgn-202610310156-2561 forged_by=pangu-create pangu=1.5.0 --&gt;</text>
+    <text x="46" y="146" class="mono" fill="#94A3B8">使用中遇到真实问题当场记一笔：python feedback/log.py add --severity major --scene ... &lt;!-- /pangu:seal --&gt;</text>
+
+    <text x="32" y="194" class="mono" fill="#38BDF8">$ python ../skills/csv-viz/feedback/log.py add --severity blocker --scene "直方图" --symptom "小样本分箱空白" --evidence "test_histogram.py"</text>
+    <text x="32" y="218" class="mono" fill="#EF4444">  🔴 已写入 feedback/inbox.tsv（#1 blocker open）→ 触发盘古强制进化契约 #8！</text>
+
+    <text x="32" y="254" class="mono" fill="#38BDF8">$ python scripts/registry.py .. ~/.claude/skills --collect-feedback</text>
+    <text x="32" y="278" class="mono" fill="#FACC15">  🧭 进化队列 [P0] csv-viz: open blocker/major=1 → 执行 E0-E3 单维修复 + verify_skill --execute</text>
+
+    <text x="32" y="314" class="mono" fill="#38BDF8">$ python ../skills/csv-viz/feedback/log.py set 1 --status resolved --evidence "evidence/verification.json#histogram-contract"</text>
+    <text x="32" y="338" class="mono" fill="#38BDF8">$ python ../skills/csv-viz/feedback/log.py bump --depth L2 &amp;&amp; python scripts/registry.py .. ~/.claude/skills --deploy</text>
+    <text x="32" y="366" class="mono" fill="#22C55E">  ✅ 反馈已凭回执证据消单，代次晋升 generation +1 (depth=L2)，进化后源码已同步推回所有安装副本！</text>
+  </g>
+
+  <!-- ==================== SCENE 4 (22.5 - 30s) ==================== -->
+  <g class="scene4">
+    <text x="32" y="82" class="mono" fill="#38BDF8">$ python scripts/registry.py .. --sync --strict --require-seal</text>
+    <text x="32" y="108" class="mono" fill="#22C55E">技能群总览（根: God_skill）  已登记 10 | 印记 10/10 ok | 孤儿 0 | open 反馈 0 | 账本警告 0</text>
+    <text x="32" y="136" class="mono" fill="#94A3B8">skill                域               型      代   深   worse  反馈  回执     印记   路径</text>
+    <text x="32" y="156" class="mono" fill="#475569">---------------------------------------------------------------------------------------------</text>
+    <text x="32" y="178" class="mono" fill="#E2E8F0">pangu-create         元技能·skill锻造  text    6   L3      4     0  fresh    ok    pangu-create</text>
+    <text x="32" y="200" class="mono" fill="#E2E8F0">csv-viz              数据可视化网页     outpu   0   L1      0     0  fresh    ok    skills/csv-viz</text>
+    <text x="32" y="222" class="mono" fill="#E2E8F0">novel-writing        长篇小说创作       text    1   L1      0     0  fresh    ok    novel-writing</text>
+    <text x="32" y="244" class="mono" fill="#E2E8F0">mech-atlas           机械装备 3D 剖解   outpu   4   L1      0     0  stale    ok    mech-atlas</text>
+    <text x="32" y="266" class="mono" fill="#E2E8F0">web-game-craft       网页游戏          outpu   2   L1      0     0  missing  ok    web-game-craft</text>
+    <text x="32" y="288" class="mono" fill="#E2E8F0">polished-3d-game     3D 游戏           outpu   2   L1      0     0  missing  ok    skills/polished-3d-game</text>
+    <text x="32" y="310" class="mono" fill="#94A3B8">... 其余 4 支子技能（html-to-video / knowledge-cards / photoreal-product / threejs-web）印记全 ok</text>
+
+    <rect x="32" y="334" width="896" height="58" rx="8" fill="#14261D" stroke="#22C55E" stroke-width="1"/>
+    <text x="52" y="360" class="mono" fill="#22C55E">🚀 一键安装: git clone https://github.com/pyf2818/pangu-create.git &amp;&amp; python pangu-create/scripts/install.py --check</text>
+    <text x="52" y="380" class="mono" fill="#86EFAC">   血统可溯（pangu.json） · 现场可捕（pangu:seal + log.py） · 闸门可验（verify_skill.py） · 全群可管（registry.py）</text>
+  </g>
+
+  <!-- Progress Bar Track -->
+  <rect x="24" y="416" width="912" height="5" rx="2.5" fill="#1E293B"/>
+  <rect x="24" y="416" width="912" height="5" rx="2.5" fill="url(#gold)" class="bar"/>
+</svg>

@@ -1,0 +1,49 @@
+name: Pangu Gate & Fleet CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  verify-gates:
+    name: Gate (${{ matrix.os }}, Python ${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ["3.9", "3.12"]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: 1. Static quality gate (11/11 checks, <=500 body lines)
+        run: python scripts/quality_check.py SKILL.md
+
+      - name: 2. Rubric triage gate (auto ceiling 75.0/75, pure JSON)
+        run: |
+          python -c "import json, subprocess, sys; out = subprocess.check_output([sys.executable, 'scripts/rubric_score.py', 'SKILL.md', '--json'], text=True, encoding='utf-8'); data = json.loads(out); assert data['auto_score'] == 75.0, data; print('Rubric auto_score:', data['auto_score'], '/', data['auto_max'])"
+
+      - name: 3. Stage state-machine navigator (READY check)
+        run: python scripts/next_step.py . --type text
+
+      - name: 4. Dual-hash receipt freshness check (--check)
+        run: python scripts/verify_skill.py . --type text --check
+
+      - name: 5. Full behavior & adversarial suites execution (--execute)
+        run: python scripts/verify_skill.py . --type text --execute
+
+      - name: 6. Strict fleet & Pangu seal inspection
+        run: python scripts/registry.py . --strict --require-seal
+
+      - name: 7. One-command installer smoke test
+        run: python scripts/install.py --dest ./_ci_installed_skills --check

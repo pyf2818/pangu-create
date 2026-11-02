@@ -10,8 +10,9 @@ execution environment failure. Default mode is structural only, never a release
 certification. --check validates a fresh report; --execute runs trusted local scripts.
 
 Source fingerprint excludes non-behavior artifacts: evidence/, feedback/ (inbox),
-results.tsv, pangu.json, registry.tsv — appending usage feedback or syncing the
-registry never invalidates a receipt; changing behavior-bearing files always does.
+results.tsv, pangu.json, registry.tsv, and the pangu seal block inside SKILL.md
+(<!-- pangu:seal --> ... <!-- /pangu:seal -->) — appending usage feedback, syncing the
+registry or re-sealing never invalidates a receipt; changing behavior-bearing files always does.
 """
 
 import argparse
@@ -29,11 +30,14 @@ try:
 except Exception:
     pass
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from pangu_seal import strip_seal_bytes  # noqa: E402
+
 META_FILES = {".gitkeep", ".ds_store", "readme.md", "index.md"}
 IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".avif"}
 WORK_EXTS = {".html", ".htm", ".js", ".mjs", ".py", ".ts", ".tsx", ".jsx",
              ".md", ".json", ".glb", ".gltf", ".mp4", ".webm", ".svg", ".pdf"}
-CORE_NAME = re.compile(r"(verify|finalize|build|validate|check|qa|score|inspect)", re.IGNORECASE)
+CORE_NAME = re.compile(r"(verify|finalize|build|validate|check|qa|score|inspect|lint)", re.IGNORECASE)
 IGNORED_PARTS = {".git", ".omc", "__pycache__", "evidence", "artifacts", "node_modules", "feedback"}
 IGNORED_NAMES = {"results.tsv", "pangu.json", "registry.tsv"}
 INJECTION_KINDS = {
@@ -71,7 +75,11 @@ def source_fingerprint(root):
     for path in files:
         relative = path.relative_to(root).as_posix().encode("utf-8")
         digest.update(len(relative).to_bytes(4, "big") + relative)
-        digest.update(normalized_bytes(path))
+        data = normalized_bytes(path)
+        if relative == b"SKILL.md":
+            # 盘古印记是管理元数据：盖章 / 刷新印记不得让行为回执过期
+            data = strip_seal_bytes(data)
+        digest.update(data)
     return digest.hexdigest(), len(files)
 
 
@@ -424,7 +432,13 @@ def gate_trio(root):
         issues.append("缺 test-prompts.json")
     if not (root / "results.tsv").exists():
         issues.append("缺 results.tsv")
-    if not (root / ".git").exists() and not list(root.glob("*.bak.*")):
+    snaps = root / "evidence" / "snapshots"
+    has_backup = (
+        (root / ".git").exists()
+        or bool(list(root.glob("*.bak.*")))
+        or (snaps.is_dir() and any(snaps.iterdir()))
+    )
+    if not has_backup:
         issues.append("缺 git 或备份链")
     return not issues, "；".join(issues) if issues else "进化三件套齐备"
 

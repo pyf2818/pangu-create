@@ -11,11 +11,13 @@ Forge any domain, task, or expert's craft into an Agent Skill that runs, verifie
 
 **[中文](README.md)** · English
 
-[![version](https://img.shields.io/badge/version-1.4.0-C8955A?style=flat-square)](https://github.com/pyf2818/pangu-create/releases)
+[![CI](https://github.com/pyf2818/pangu-create/actions/workflows/ci.yml/badge.svg)](.github/workflows/ci.yml)
+[![version](https://img.shields.io/badge/version-1.5.0-C8955A?style=flat-square)](CHANGELOG.md)
 [![license](https://img.shields.io/badge/license-MIT-3B82F6?style=flat-square)](LICENSE)
 [![python](https://img.shields.io/badge/python-3.9%2B-3776AB?style=flat-square)](scripts)
 [![Agent Skill](https://img.shields.io/badge/Agent%20Skill-compatible-8B5CF6?style=flat-square)](#quick-start)
 [![static check](https://img.shields.io/badge/static%20check-11%2F11-22C55E?style=flat-square)](#scripts)
+[![behavior receipt](https://img.shields.io/badge/behavior%20receipt-5%20suites%20%C2%B7%2074%20assertions-16A34A?style=flat-square)](#quick-start)
 
 </div>
 
@@ -23,6 +25,12 @@ Forge any domain, task, or expert's craft into an Agent Skill that runs, verifie
 
 > Pangu parted the heavens, and all things took shape.
 > This skill does one thing: package **how an expert thinks, works, and avoids pitfalls** into reproducible craft — not a longer prompt.
+
+<div align="center">
+  <img src="assets/showcase/pangu-demo.gif" alt="pangu-create 30s end-to-end demo" width="100%">
+  <br>
+  <sub>🎬 30-second end-to-end walkthrough: ① One-sentence kickoff &amp; <code>next_step.py</code> state machine → ② Dual-hash receipts &amp; 3-Judge blind eval → ③ In-situ <code>pangu:seal</code> feedback capture → ④ <code>registry.py</code> fleet overview (<a href="assets/showcase/pangu-demo.svg">view crisp animated SVG</a>)</sub>
+</div>
 
 The skill body is written in Chinese (the working language it was forged in); this README gives English speakers the full picture. Frontmatter triggers include English aliases (`create a skill`, `make a skill`, `turn this into a skill`, `optimize my skill`, `score my skill`).
 
@@ -52,21 +60,23 @@ In one line: **a document score is not an artifact score; doc compliance is not 
 
 These are written into `references/design-thesis.md` at project kickoff and enforced by `scripts/verify_skill.py` — not by model discipline.
 
-## Signature mechanisms (v1.4.0)
+## Signature mechanisms (v1.5.0)
 
-> Forging is only the beginning. Every skill pangu forges becomes a **linked, auditable, self-reporting** asset instead of a stray folder.
+> Forging is only the beginning. Every skill pangu forges becomes a **sealed, linked, auditable, self-reporting** asset instead of a stray folder.
 
 | Mechanism | Carrier | In one line |
 |---|---|---|
-| 🩸 **Lineage manifest** | `pangu.json` | lineage_id / domain / generation / depth ship with every skill; legacy skills get registered with a single `--adopt` command |
-| 📬 **Feedback inbox** | `feedback/inbox.tsv` | Real usage problems get logged on the spot; an open blocker/major row is a **mandatory evolution trigger** (contract #8) |
-| 🗂️ **Skill fleet registry** | `scripts/registry.py` | One-command scan: generation / depth / ledger / open feedback / receipt freshness + orphan detection; `--strict` exit code fits CI |
+| 🔖 **Pangu seal** | `SKILL.md` (`<!-- pangu:seal -->`) | In-situ feedback instructions inside every forged `SKILL.md` (stripped from `verify_skill` source fingerprint so re-sealing never invalidates receipts) |
+| 📬 **Feedback inbox + CLI** | `feedback/inbox.tsv` + `feedback/log.py` | Zero-dep `log.py` (`add`/`list`/`set`/`bump`) logs real usage issues safely; open blocker/major or minor ≥3 is a **mandatory evolution trigger** (contract #8) |
+| 🩸 **Lineage manifest** | `pangu.json` | lineage_id / domain / generation / depth ship with every skill; `--reseal` stamps existing skills and syncs generation from ledger keeps |
+| 🗂️ **Multi-root fleet registry** | `scripts/registry.py` | Multi-root scan: seal status / generation / depth / receipt freshness / duplicate copies + prioritized **P0–P3 evolution queue** |
 
 ```bash
 python scripts/registry.py <workspace-root> --sync
+python scripts/scaffold.py <skill-dir> --reseal
 ```
 
-Self-hosted verification: 10 skills (9 forged products + pangu itself) registered; **5 behavior suites / 61 assertions** green (rubric auto score at its 75/75 ceiling; D8 real-world testing and D10 taste stay human by design).
+Self-hosted verification: 10 skills (9 forged products + pangu itself) registered with `10/10` seals ok; **5 behavior suites / 66 assertions** green (rubric auto score at its 75/75 ceiling; D8 real-world testing and D10 taste stay human by design).
 
 ---
 
@@ -81,13 +91,14 @@ Self-hosted verification: 10 skills (9 forged products + pangu itself) registere
 
 Requirements: Python 3.9+ (stdlib only, zero third-party deps); any agent runtime that reads `SKILL.md`.
 
-```bash
-git clone https://github.com/pyf2818/pangu-create.git
+**One-command cross-platform install (Windows / macOS / Linux — auto-detects `~/.claude/skills`, `~/.agents/skills`, etc., preserves existing replica feedback, and runs 11/11 + seal self-checks):**
 
-# Install into your skills directory (pick per runtime)
-cp -r pangu-create ~/.agents/skills/       # generic
-cp -r pangu-create ~/.claude/skills/       # Claude Code
-cp -r pangu-create ~/.trae-cn/skills/      # TRAE
+```bash
+# macOS / Linux / Git Bash
+git clone https://github.com/pyf2818/pangu-create.git && python3 pangu-create/scripts/install.py --check
+
+# Windows PowerShell
+git clone https://github.com/pyf2818/pangu-create.git; python pangu-create/scripts/install.py --check
 ```
 
 Install self-check:

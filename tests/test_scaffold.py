@@ -58,6 +58,12 @@ class ScaffoldContractTest(unittest.TestCase):
         self.assertFalse(data["pass"])
         self.assertEqual(data["behavior_summary"]["pass"], 0)
 
+    def test_scaffold_stamps_pangu_seal_and_feedback_tool(self):
+        skill_md = (self.target / "SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("<!-- pangu:seal v1", skill_md)
+        self.assertIn("<!-- /pangu:seal -->", skill_md)
+        self.assertTrue((self.target / "feedback" / "log.py").is_file())
+
 
 if __name__ == "__main__":
     unittest.main()

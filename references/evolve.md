@@ -29,16 +29,16 @@
 5. 用户说「优化/升级/评分」= 主动走本管线；用户没说但给了差评 = 被动触发，同样走本管线，**没有豁免**
 6. **代表作回流**：成功使用 ≠ 结束——工件择优回填 showcase 并拆解回配方/踩坑（E4，见 forge.md），skill 每被用好一次就变深一次；深度等级 L1 框架级 → L2 工程级 → L3 专家级 随回流晋升
 7. **新陈代谢（盘古自身也必须进化）**：模型自评 / 机器信号 / 用户反馈任一触发后，走 E5 四问——沉淀工艺进 [craft-atlas.md](craft-atlas.md)、补强闸门、动态淘汰该淘汰的规则。盘古不是固定图纸，是活系统；契约的这条由 E5 节执行
-8. **反馈落箱（自动触发的捕获点）**：每个盘古锻造的 skill 都有 `feedback/inbox.tsv` 收件箱。使用中发现的任何真实问题**当场落一行**（timestamp/severity/scene/symptom/evidence/status=open）——用户抱怨、报错、静默失败、产出不合预期都算。「我记住了」不算捕获。**severity=blocker/major 且 status=open 的行 = 强制进化触发器**：进 E0-E3 处理，处理中置 processing，修复后置 resolved 并在 evidence 贴 results.tsv 行号或 commit。minor 攒 ≥3 条 open 同样触发一轮。`registry.py --sync` 聚合全技能群的 open 数，巡检时任何 skill 的 blocker/major > 0 都必须当场认领或明确排期，不许视而不见
+8. **反馈落箱（自动触发的捕获点）**：每个盘古锻造的 skill 都在 `SKILL.md` 末尾携带 `<!-- pangu:seal ... -->` 盘古印记，并配齐 `feedback/inbox.tsv` + `feedback/log.py`。使用中发现的任何真实问题**当场跑 `python <该skill目录>/feedback/log.py add` 落一行**（timestamp/severity/scene/symptom/evidence/status=open）——用户抱怨、报错、静默失败、产出不合预期都算。「我记住了」不算捕获。**severity=blocker/major 且 status=open 的行，或 open 的 minor ≥3 条 = 强制进化触发器**：进 E0-E3 处理，认领时 `log.py set <行> --status processing`，修复后 `log.py set <行> --status resolved --evidence <results.tsv行号或commit>`，keep 后跑 `log.py bump`。`registry.py --sync` 聚合全技能群的 open 数并输出 P0–P3 进化队列，巡检时任何 P0/P1 项都必须当场认领或明确排期，不许视而不见
 
 ## E0 初始化
 
 ```
-1. 确认优化范围：全部 skills（扫描已安装目录）→ 用户指定列表
-   扫描工具：python3 scripts/registry.py <工作区根>（列已登记 skill + 孤儿 + open 反馈）
-   血统核对：每个 skill 目录应有 pangu.json；缺 → 用 scaffold.py --adopt 补登记（只加两件文件）
-2. 先读反馈收件箱：目标 skill 的 feedback/inbox.tsv 里 open 的 blocker/major
-   = 本轮最高优先级（进化契约 #8）；没有收件箱的 skill → 先补建再进化
+1. 确认优化范围：全部 skills（支持多根扫描：工作区根 + 已安装目录）→ 用户指定列表
+   扫描工具：python scripts/registry.py <根1> [<根2> ...]（列已登记 skill + 印记状态 + 孤儿 + P0-P3 进化队列）
+   血统与印记核对：每个 skill 应有 pangu.json 与 SKILL.md 盘古印记；缺 → 用 scaffold.py <目录> --reseal 补齐
+2. 先读反馈收件箱：运行 python <目标目录>/feedback/log.py list，open 的 blocker/major 或 minor ≥3
+   = 本轮最高优先级（进化契约 #8）；没有收件箱/印记的 skill → 先 --reseal 补建再进化
 3. 先判授权：只读审计 → 跳过 E0/E2，只跑 E1 的只读部分并出报告，不写任何文件
    可变进化 → 继续
 4. 读 git status：
@@ -124,10 +124,11 @@ for each skill（按基线分升序，先修最弱的）:
     #     在 results.tsv 的 evidence 记快照路径
     #   - 不得为了让流程继续而 reset/checkout 他人改动
 
-    # Step 4 paired 重评：spawn N=3 个独立 judge（close call 升 5，N 保持奇数），
+    # Step 4 3-Judge 异构职责盲评（paired 重评）：spawn N=3 个异构职责独立 judge（见 testing.md §4：
+    #   Judge A 正确性与边界 / Judge B 精简度与 >10% 长度膨胀惩罚 / Judge C 领域辨识度），
     #   每个 judge 在【同一次调用内】读改前版（有提交：git show HEAD~1:<path>；
-    #   无提交：evidence/snapshots/<时间>/ 的副本）与改后版，
-    #   以 rubric 为比较准则（不是各打绝对分），回 {better|worse|tie} + margin{clear|slight} + 一句理由。
+    #   无提交：evidence/snapshots/<时间>/ 的副本）与改后版（支持 X/Y 位置交换防位置偏见），
+    #   以各自职责与 rubric 为比较准则，回 {better|worse|tie} + margin{clear|slight} + 一句理由。
     #   产出型 skill：judge 读的是两版各自生成的成品，SKILL.md 只作背景；无独立 judge → self_eval 不得 keep
     #   同一 judge 同次读两版 → 它那把不准的尺对两版等量作用、在比较中抵销
 
@@ -194,7 +195,7 @@ for each skill（按基线分升序，先修最弱的）:
 - 主要改进列表（每条对应 skill + 改了什么 + 实测变化）
 - 闸门状态：quality_check（结构）/ verify_skill --check（行为回执）分开列，不得合并成「全绿」
 - 运行时中立度：红灯命中数 X → 0
-- 技能群登记：keep 后 pangu.json generation +1；报告末尾跑 registry.py --sync 并贴总览
+- 技能群登记：keep 后跑 python <目标目录>/feedback/log.py bump（generation +1）；报告末尾跑 registry.py --sync 并贴总览与进化队列
 ```
 
 ---
@@ -236,6 +237,7 @@ for each skill（按基线分升序，先修最弱的）:
 | 12 | 改阈值/放宽上限过闸 | 闸门变成橡皮图章 | 实测 ≥ 阈值×1.5，或 3 次采样中位数与最小值均 ≥ 阈值；不够就减负载 |
 | 13 | 定位变更只改 SKILL.md | 范例/模板/触发词/README 仍在旧定位，用户拿到错东西 | 走定位变更五件套审计 |
 | 14 | 只读体检顺手写账本/建分支/联网 | 用户只要报告，却留下状态变更；在多 agent 仓库里尤其危险 | 只读审计零写入；要修先取得可变授权 |
+| 15 | 为提高自测分去改评分器（古德哈特刷分） | 分数一旦成为操控目标就不再是有效度量 | 评分器视为冻结基准；确属假阴性/假阳性时，须先写正反误判回归测试锁定边界，且不得冒充业务质量提升 |
 
 ## E4 代表作回流（实战后必做）
 

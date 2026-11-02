@@ -9,16 +9,17 @@
 
 *A meta-skill that forges any domain into a verifiable, evolvable Agent Skill.*
 
-**🩸 技能群管理** — 锻造出的每个 skill 带血统清单（`pangu.json`），`registry.py` 一键盘点全群，孤儿无所遁形
-**📬 自动进化触发** — 每个 skill 自带反馈收件箱（`feedback/inbox.tsv`），open 的 blocker/major = 强制进化轮，不靠记忆靠落箱
+**🔖 盘古印记** — 每个锻造 skill 的 `SKILL.md` 末尾盖有 `<!-- pangu:seal -->` 印记 + `feedback/log.py` 工具，在子技能使用现场就能触发问题落箱，且盖章不弄脏回执
+**🩸 技能群与进化队列** — 血统清单 `pangu.json` + `registry.py` 多根扫描：一键盘点印记/代次/回执/跨根副本，自动排好 P0–P3 进化队列
 **🔒 全链路机器闸门** — 测试题先行 / 新鲜回执双哈希绑定 / 读有闸写也有闸——伪造、过期、空壳证据一律拒绝
 
-[![version](https://img.shields.io/badge/version-1.4.0-C8955A?style=flat-square)](https://github.com/pyf2818/pangu-create/releases)
+[![CI](https://github.com/pyf2818/pangu-create/actions/workflows/ci.yml/badge.svg)](.github/workflows/ci.yml)
+[![version](https://img.shields.io/badge/version-1.5.0-C8955A?style=flat-square)](CHANGELOG.md)
 [![license](https://img.shields.io/badge/license-MIT-3B82F6?style=flat-square)](LICENSE)
 [![python](https://img.shields.io/badge/python-3.9%2B-3776AB?style=flat-square)](scripts)
 [![Agent Skill](https://img.shields.io/badge/Agent%20Skill-compatible-8B5CF6?style=flat-square)](#快速开始)
 [![static check](https://img.shields.io/badge/static%20check-11%2F11-22C55E?style=flat-square)](#脚本)
-[![behavior receipt](https://img.shields.io/badge/behavior%20receipt-5%20suites%20%C2%B7%2061%20assertions-16A34A?style=flat-square)](#可执行闸门)
+[![behavior receipt](https://img.shields.io/badge/behavior%20receipt-5%20suites%20%C2%B7%2074%20assertions-16A34A?style=flat-square)](#可执行闸门)
 
 [快速开始](#快速开始) · [怎么用](#怎么用) · [质量体系](#质量体系) · [进化循环](#进化循环) · [FAQ](#faq) · [已知局限](#已知局限)
 
@@ -31,13 +32,19 @@
 > 盘古开天，万物始生。
 > 这个 skill 只做一件事：把「专家怎么思考、怎么做事、怎么避坑」封装成可复现的工艺——而不是一段更长的提示词。
 
+<div align="center">
+  <img src="assets/showcase/pangu-demo.gif" alt="盘古开天 30 秒全链路实机演示（立项导航 → 双哈希闸门 → 盘古印记落箱 → 技能群总览）" width="100%">
+  <br>
+  <sub>🎬 30 秒全链路实证：① 一句话立项与 <code>next_step.py</code> 状态机 → ② 双哈希回执与 3-Judge 盲评 → ③ <code>pangu:seal</code> 现场落箱进化 → ④ <code>registry.py</code> 技能群总览（<a href="assets/showcase/pangu-demo.svg">查看高清矢量动画版 SVG</a>）</sub>
+</div>
+
 ---
 
 ## 目录
 
 - [它解决什么问题](#它解决什么问题)
 - [核心主张](#核心主张)
-- [v1.4.0 招牌机制](#v140-招牌机制)
+- [v1.5.0 招牌机制](#v150-招牌机制)
 - [两条管线](#两条管线)
 - [快速开始](#快速开始)
 - [一句话生成的作品](#一句话生成的作品)
@@ -97,22 +104,24 @@
 
 ---
 
-## v1.4.0 招牌机制（技能群管理与自动进化）
+## v1.5.0 招牌机制（盘古印记 · 技能群管理 · 自动进化队列）
 
-> 锻造只是起点。v1.4.0 让「盘古造的 skill」从散落的目录变成**有关联、可盘点、会自动求救**的资产群。
+> 锻造只是起点。v1.5.0 把「使用现场 → 当场落箱 → 进化队列 → 修复回填」四环彻底接通。
 
 | 机制 | 载体 | 一句话 |
 |---|---|---|
-| 🩸 **血统清单** | `pangu.json` | lineage_id / 领域 / 代次（generation）/ 深度（L1-L3）随 skill 出厂；存量 skill 用 `--adopt` 一条命令补登记（只加文件不动其他） |
-| 📬 **反馈收件箱** | `feedback/inbox.tsv` | 使用中的问题**当场落行**；open 的 blocker/major = 强制进化触发器（进化契约 #8），修复后 resolved 并贴证据——不靠记忆，靠落箱 |
-| 🗂️ **技能群注册表** | `scripts/registry.py` | 一键扫描：代次 / 深度 / worse 数 / open 反馈 / 回执新鲜度（fresh-stale-missing，双哈希比对）+ **孤儿检测**；`--strict` 退出码可接 CI 巡检 |
+| 🔖 **盘古印记** | `SKILL.md` 末尾 `<!-- pangu:seal -->` | 子技能被使用时盘古未必在场——印记在子技能 `SKILL.md` 内部提醒执行 agent「出问题当场落箱」；`--reseal` 幂等补盖，且印记不计入 `verify_skill` 源码指纹，盖章不弄脏回执 |
+| 📬 **随行收件箱与工具** | `feedback/inbox.tsv` + `feedback/log.py` | 零依赖 `log.py`（`add`/`list`/`set`/`bump`）防手写 TSV 写坏；open 的 blocker/major 或 open minor ≥3 = **强制进化触发器**（进化契约 #8），置 `resolved` 强制要求证据 |
+| 🩸 **血统清单** | `pangu.json` | lineage_id / 领域 / 代次 / 深度（L1-L3）随 skill 出厂；`log.py bump` 一键代次 +1（深度只升不降），`--reseal` 自动按账本 `keep` 数对齐存量代次 |
+| 🗂️ **多根注册表与进化队列** | `scripts/registry.py` | 支持同时扫多个根（工作区 + 已安装目录）并检测同血统副本；核查印记/回执新鲜度/孤儿，自动输出 **P0–P3 优先级进化队列** |
 
 ```bash
-python scripts/registry.py <工作区根> --sync     # 生成 registry.tsv + 打印技能群总览
-python scripts/registry.py <工作区根> --strict   # 有 open blocker/major 或孤儿 → exit 1（巡检用）
+python scripts/registry.py <工作区根> [~/.claude/skills] --sync   # 多根扫描 + 生成 registry.tsv + P0-P3 进化队列
+python scripts/scaffold.py <skill目录> --reseal                  # 给存量 skill 补盖/刷新盘古印记与 feedback/log.py
+python scripts/registry.py <工作区根> --strict --require-seal    # 巡检：有触发进化的反馈/孤儿/缺印记 → exit 1
 ```
 
-本仓库自举验证（盘古吃自己的狗粮）：10 个 skill（9 个锻造产物 + 盘古自身）全部登记，注册表见 [registry.tsv](registry.tsv)；守护自身文档口径的 `docs-consistency` 套件 11 项断言，与行为回执共 **5 套件 / 61 项断言**全绿（rubric 自动分 75/75 打满，D8 实测与 D10 品味按设计留人工）。
+本仓库自举验证（盘古吃自己的狗粮）：10 个 skill（9 个锻造产物 + 盘古自身）全部登记且印记 `10/10 ok`，注册表见 [registry.tsv](registry.tsv)；守护自身文档口径的 `docs-consistency` 套件与行为回执共 **5 套件 / 66 项断言**全绿（rubric 自动分 75/75，D8 实测与 D10 品味按设计留人工）。
 
 ---
 
@@ -150,13 +159,21 @@ flowchart LR
 
 **要求**：Python 3.9+（脚本只用标准库，无第三方依赖）；任何能读取 `SKILL.md` 的 Agent 运行时。
 
-```bash
-git clone https://github.com/pyf2818/pangu-create.git
+**一行命令安装（跨平台 Windows / macOS / Linux，自动探测 `~/.claude/skills`、`~/.agents/skills` 等目录并执行 11/11 + 印记自检）**：
 
-# 安装到你的 skills 目录（按运行时任选）
-cp -r pangu-create ~/.agents/skills/       # 通用
-cp -r pangu-create ~/.claude/skills/       # Claude Code
-cp -r pangu-create ~/.trae-cn/skills/      # TRAE
+```bash
+# macOS / Linux / Git Bash
+git clone https://github.com/pyf2818/pangu-create.git && python3 pangu-create/scripts/install.py --check
+
+# Windows PowerShell
+git clone https://github.com/pyf2818/pangu-create.git; python pangu-create/scripts/install.py --check
+```
+
+也支持指定运行时或一键将工作区内全部盘古技能群批量分发到运行目录：
+
+```bash
+python pangu-create/scripts/install.py --target claude --check          # 仅装入 ~/.claude/skills（若已有旧副本会自动先回收未同步反馈）
+python pangu-create/scripts/install.py --fleet <工作区根> --target all  # 将整个盘古技能群批量安装到所有运行时
 ```
 
 项目级安装：把 `pangu-create/` 放进 `<project>/.agents/skills/`。
@@ -312,7 +329,7 @@ python scripts/verify_skill.py my-skill --type output --check
 
 结构闸门（论点 / 范例 / 署名作品 / 承诺→测试 ID 绑定）任一 FAIL 即 `exit 1`；行为闸门以新鲜回执为准。**两层的结论不得互相替代。**
 
-### 技能群管理与自动进化（v1.4.0）
+### 技能群管理与自动进化（v1.5.0）
 
 | 机制 | 说明 |
 |---|---|
@@ -332,7 +349,9 @@ python scripts/registry.py <工作区根> --sync   # 生成/刷新 registry.tsv 
 
 | 脚本 | 用途 | 用法 |
 |---|---|---|
-| `scaffold.py` | 生成目标 skill 骨架（含故意失败的占位测试与行为清单） | `python scripts/scaffold.py my-skill --name my-skill` |
+| `install.py` | 一键跨平台安装/更新 skill 或整群分发（自动保护并回收旧副本反馈） | `python scripts/install.py --check` |
+| `next_step.py` | 确定性阶段状态机导航（按磁盘真实进度输出当前阶段 ≤6 条动作与分级检查点） | `python scripts/next_step.py my-skill --tier quick` |
+| `scaffold.py` | 生成目标 skill 骨架（自带 `pangu.json`、盘古印记、`feedback/log.py`） | `python scripts/scaffold.py my-skill --name my-skill` |
 | `quality_check.py` | 静态 11 项自检（frontmatter / 失败分支 / 检查点 / 软化措辞 / 自包含…）；**结构证据** | `python scripts/quality_check.py my-skill/SKILL.md` |
 | `rubric_score.py` | 11 维 rubric 自动评分（1-7/9/11，满分 75；D8/D10 人工） | `python scripts/rubric_score.py my-skill/SKILL.md --json` |
 | `verify_skill.py` | 结构预检 / 行为执行 / 回执核验（`--execute` / `--check`） | `python scripts/verify_skill.py my-skill --type output --execute` |

@@ -4,7 +4,8 @@
 
 用法:
     python3 scaffold.py <目标skill目录> --name <skill-name> [--force]
-    python3 scaffold.py <已有skill目录> --name <skill-name> --adopt [--domain <领域>] [--forge-date YYYY-MM-DD]
+    python3 scaffold.py <已有skill目录> --name <skill-name> --adopt [--seal] [--domain <领域>] [--forge-date YYYY-MM-DD]
+    python3 scaffold.py <已有skill目录> [--name <skill-name>] --reseal
 
 示例:
     python3 scaffold.py ./.agents/skills/excel-valuation --name excel-valuation
@@ -33,20 +34,19 @@ try:
 except Exception:
     pass
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from pangu_seal import (  # noqa: E402
+    FEEDBACK_LOG_PY,
+    FEEDBACK_README,
+    apply_seal,
+    render_seal,
+)
+
 # 盘古代次锚点：SKILL.md 顶部代次行升级时同步改这里（registry.py 会把 forge 时的版本记进血统清单）
-PANGU_VERSION = "1.4.0"
+PANGU_VERSION = "1.5.0"
 
 INBOX_HEADER = "timestamp\tseverity\tscene\tsymptom\tevidence\tstatus\n"
-
-INBOX_README = """# 反馈收件箱（进化触发器）
-
-> 使用本 skill 过程中遇到的每个真实问题（用户抱怨 / 报错 / 静默失败 / 产出不合预期），
-> 执行 agent 必须**当场**追加一行到 inbox.tsv——不许只口头说「记下了」。
-> severity=blocker/major 且 status=open 的行 = 强制进化触发器（盘古进化契约 #8）。
-
-severity: blocker（阻断核心承诺）/ major（明显影响产出）/ minor（打磨项）
-status:   open → processing（进化轮已认领）→ resolved（evidence 列贴 results.tsv 行号或修复 commit）
-"""
+INBOX_README = FEEDBACK_README
 
 
 def make_manifest(name: str, adopted: bool, forge_date: str, skill_type: str, domain: str) -> dict:
@@ -277,23 +277,14 @@ description: |
 
 <!-- 冷门输入 / 参照物模式 / 更新模式（增量更新哪些维度、调研时间标在哪） -->
 
-## 反馈与进化（进化契约，不豁免）
-
-- 本 skill 由 pangu-create 锻造（血统见 pangu.json）；交付只是第 0 代。
-- **反馈落箱**：使用中遇到任何真实问题（用户抱怨 / 报错 / 静默失败 / 产出不合预期），
-  当场在 `feedback/inbox.tsv` 追加一行（timestamp/severity/scene/symptom/evidence/status=open），不许只口头记。
-- **自动触发**：severity=blocker/major 且 open 的反馈 = 强制进化轮（E0-E3，盘古 evolve.md 契约 #8）；
-  同一问题第 2 次出现 → 升级探索性重写，不做表层修补。
-- 修复后把对应行置 resolved，evidence 列贴 results.tsv 行号或修复 commit。
-- 每轮进化 keep 后 `pangu.json` 的 generation +1；代表作回流（E4）后 depth 晋升（L1→L2→L3）。
-
 ## 诚实边界
 
 - TODO: 具体局限 1
 - TODO: 具体局限 2
 - TODO: 具体局限 3
 - 调研时间：{today}，之后的变化未覆盖
-"""
+
+{seal_block}"""
 
 
 def write_if_absent(path: Path, content: str, force: bool) -> str:
@@ -319,46 +310,94 @@ def _infer_forge_date(root: Path, adopt: bool) -> str:
     return date.today().isoformat()
 
 
+def _infer_generation(root: Path) -> int:
+    """有 results.tsv 时按 keep 记录数推算存量代次。"""
+    tsv = root / "results.tsv"
+    if not tsv.exists():
+        return 0
+    try:
+        from analyze_evolution import parse_tsv
+        records, error, _ = parse_tsv(tsv)
+        if error:
+            return 0
+        return sum(1 for r in records if str(r.get("status", "")).strip().lower() == "keep")
+    except Exception:
+        return 0
+
+
+def _stamp_skill_md(skill_md: Path, lineage_id: str) -> str:
+    raw = skill_md.read_bytes().decode("utf-8-sig")
+    crlf = "\r\n" in raw
+    sealed = apply_seal(raw.replace("\r\n", "\n"), render_seal(lineage_id, PANGU_VERSION))
+    if crlf:
+        sealed = sealed.replace("\n", "\r\n")
+    skill_md.write_bytes(sealed.encode("utf-8"))
+    return f"  seal  {skill_md} (lineage={lineage_id})"
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="盘古开天 脚手架")
     parser.add_argument("target", help="目标 skill 目录路径")
-    parser.add_argument("--name", required=True, help="skill 名（小写 kebab-case，须与目录名一致）")
+    parser.add_argument("--name", default=None, help="skill 名（小写 kebab-case；--reseal 已有 pangu.json 时可省）")
     parser.add_argument("--force", action="store_true", help="覆盖已存在的骨架文件（不删用户文件）")
     parser.add_argument("--adopt", action="store_true",
-                        help="登记模式：只写 pangu.json + feedback/inbox.tsv 两件，不动其他文件（用于给存量 skill 补血统）")
+                        help="登记模式：只写 pangu.json + feedback/（不动 SKILL.md；加 --seal 同步盖章）")
+    parser.add_argument("--seal", action="store_true",
+                        help="配合 --adopt 在 SKILL.md 末尾盖盘古印记区块")
+    parser.add_argument("--reseal", action="store_true",
+                        help="给已有 skill 补盖/刷新 SKILL.md 盘古印记与 feedback/log.py（幂等，不弄脏回执）")
     parser.add_argument("--skill-type", choices=["output", "text"], default="output", help="skill 分型（默认 output）")
     parser.add_argument("--domain", default="TODO-领域名（craft-atlas 节名）", help="领域名（craft-atlas 节名，回填 atlas 后同步）")
     parser.add_argument("--forge-date", default=None, help="锻造日期 YYYY-MM-DD（默认今天；--adopt 且有 results.tsv 时取首条记录日期）")
     args = parser.parse_args()
 
-    if not re.fullmatch(r"[a-z0-9]+(-[a-z0-9]+)*", args.name):
-        print(f"❌ skill 名必须是小写 kebab-case（字母/数字/连字符）: {args.name}")
-        sys.exit(1)
-
     root = Path(args.target)
+    manifest_path = root / "pangu.json"
+    existing_manifest = None
+    if manifest_path.is_file():
+        try:
+            existing_manifest = json.loads(manifest_path.read_text(encoding="utf-8-sig"))
+        except (OSError, ValueError):
+            existing_manifest = None
+
+    skill_name = args.name or (existing_manifest or {}).get("name") or (root.resolve().name if args.reseal else None)
+    if not skill_name or not re.fullmatch(r"[a-z0-9]+(-[a-z0-9]+)*", str(skill_name)):
+        print(f"❌ skill 名必须是小写 kebab-case（字母/数字/连字符）: {skill_name}")
+        sys.exit(1)
+    args.name = str(skill_name)
 
     forge_date = args.forge_date
     if forge_date is None:
-        forge_date = _infer_forge_date(root, args.adopt)
+        forge_date = _infer_forge_date(root, args.adopt or args.reseal)
 
-    if args.adopt:
+    if args.adopt or args.reseal:
         if not (root / "SKILL.md").is_file():
-            print(f"❌ --adopt 要求目标已有 SKILL.md: {root}")
+            print(f"❌ --adopt/--reseal 要求目标已有 SKILL.md: {root}")
             sys.exit(1)
         root.mkdir(parents=True, exist_ok=True)
-        manifest = make_manifest(args.name, adopted=True, forge_date=forge_date,
-                                 skill_type=args.skill_type, domain=args.domain)
-        print(f"🩸 补登记血统: {root}")
-        print(write_if_absent(root / "pangu.json",
-                              json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", args.force))
+        manifest = existing_manifest or make_manifest(
+            args.name, adopted=True, forge_date=forge_date,
+            skill_type=args.skill_type, domain=args.domain)
+        inferred_gen = _infer_generation(root)
+        gen_synced = False
+        if int(manifest.get("generation", 0) or 0) == 0 and inferred_gen > 0:
+            manifest["generation"] = inferred_gen
+            gen_synced = True
+        print(f"🩸 {'补盖/刷新印记' if args.reseal else '补登记血统'}: {root}")
+        print(write_if_absent(manifest_path,
+                              json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
+                              args.force or gen_synced))
         (root / "feedback").mkdir(parents=True, exist_ok=True)
-        print(write_if_absent(root / "feedback" / "inbox.tsv", INBOX_HEADER, args.force))
-        print(write_if_absent(root / "feedback" / "README.md", INBOX_README, args.force))
+        print(write_if_absent(root / "feedback" / "inbox.tsv", INBOX_HEADER, False))
+        print(write_if_absent(root / "feedback" / "README.md", INBOX_README, args.force or args.reseal))
+        print(write_if_absent(root / "feedback" / "log.py", FEEDBACK_LOG_PY, args.force or args.reseal))
+        if args.seal or args.reseal:
+            print(_stamp_skill_md(root / "SKILL.md", manifest["lineage_id"]))
         print()
         print("⚠️ 登记后动作：")
         print("  [ ] 同步注册表: python3 <盘古目录>/scripts/registry.py <工作区根> --sync")
         print("  [ ] 领域已在 craft-atlas.md 有节 → 把 pangu.json 的 domain 对齐节名；无节 → E4 回填时注册")
-        print("  [ ] 进化 keep 后 generation +1；E4 回流后 depth 晋升（L1/L2/L3）")
+        print("  [ ] 进化 keep 后跑 feedback/log.py bump（generation +1；E4 回流加 --depth L2/L3）")
         return
 
     if root.exists() and not args.force:
@@ -384,7 +423,13 @@ def main() -> None:
                           json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", args.force))
     print(write_if_absent(root / "feedback" / "inbox.tsv", INBOX_HEADER, args.force))
     print(write_if_absent(root / "feedback" / "README.md", INBOX_README, args.force))
-    print(write_if_absent(root / "SKILL.md", SKILL_MD_SKELETON.format(name=args.name, today=date.today().isoformat()), args.force))
+    print(write_if_absent(root / "feedback" / "log.py", FEEDBACK_LOG_PY, args.force))
+    seal_block = render_seal(manifest["lineage_id"], PANGU_VERSION)
+    print(write_if_absent(
+        root / "SKILL.md",
+        SKILL_MD_SKELETON.format(name=args.name, today=date.today().isoformat(), seal_block=seal_block),
+        args.force,
+    ))
     print(write_if_absent(
         root / "references" / "design-thesis.md",
         DESIGN_THESIS_STUB,

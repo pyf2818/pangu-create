@@ -186,6 +186,26 @@ def score_dim2_workflow(body: str):
     return score, "; ".join(reasons)
 
 
+_PLATITUDE_RE = re.compile(
+    r"重试一下|再试一次|重新尝试|重试|稍后再试|检查网络连接|检查网络|检查配置|联系管理员|报错退出|提示用户|告知用户|提醒用户|提示错误|人工处理|手动处理|忽略|报错|退出|失败|兜底|回退|降级|网络|请求|连接|一次|一下|用户|请|并|或|[\s,，。；;、/|\-]+"
+)
+_CONCRETE_SIGNAL_RE = re.compile(r"--[\w-]+|[\w-]+\.(?:py|js|mjs|sh|json|md|tsv|html)|`[^`]+`|\d+|→")
+
+
+def _is_platitude_failure_row(row: str) -> bool:
+    """识别只有『重试/检查网络/报错』而无具体动作信号或步骤的万金油失败行。"""
+    cells = [c.strip() for c in row.strip().strip("|").split("|")]
+    if len(cells) < 2:
+        return True
+    if set("".join(cells)) <= set("-: "):
+        return True
+    rest = " ".join(cells[1:])
+    if _CONCRETE_SIGNAL_RE.search(rest):
+        return False
+    stripped = _PLATITUDE_RE.sub("", rest)
+    return len(stripped) < 6
+
+
 def score_dim3_failure(body: str):
     """维度3 失败分支编码（权重11）"""
     checks = {}
@@ -202,19 +222,32 @@ def score_dim3_failure(body: str):
     # 3d 有 fallback/降级关键词
     checks["has_fallback"] = bool(re.search(r"fallback|Fallback|FALLBACK|降级|回退", body))
 
-    # 3e 失败分支数量（≥5 条算高分）
-    fail_entries = len(re.findall(r"^\|\s*[^|]+\|.*失败.*\|", body, re.MULTILINE))
-    fail_entries += len(re.findall(r"^\|\s*[^|]+\|.*fallback.*\|", body, re.MULTILINE))
-    checks["enough_entries"] = fail_entries >= 5
+    # 3e 实质性失败分支数量（≥5 条算高分；剔除纯「重试/检查网络/报错」万金油空话行）
+    raw_rows = re.findall(r"^\|.*(?:失败|异常|超时|缺失|错误|不可达|不可用|fallback|降级|回退|报错|崩溃).*\|", body, re.MULTILINE | re.IGNORECASE)
+    substantive_entries = 0
+    platitude_rows = 0
+    for row in raw_rows:
+        cells = [c.strip() for c in row.strip().strip("|").split("|")]
+        if not cells or cells[0] in ("触发条件", "故障场景", "场景", "异常") or set("".join(cells)) <= set("-: "):
+            continue
+        if _is_platitude_failure_row(row):
+            platitude_rows += 1
+        else:
+            substantive_entries += 1
+    checks["enough_entries"] = substantive_entries >= 5
 
     passed = sum(checks.values())
     # 5项全过=10, 但如果没有失败表(3c)则封顶6（rubric: 只写正向流程扣≥3分）
     score = {5: 10, 4: 8, 3: 6, 2: 4, 1: 2, 0: 1}[passed]
+    if platitude_rows > 0 and substantive_entries < 5:
+        score = min(score, 7)
     if not checks.get("has_table"):
         score = min(score, 6)  # 只写正向流程本维≤6
     if not checks.get("has_if_fail") and not checks.get("has_table"):
         score = min(score, 4)  # 完全没有失败分支扣≥3分
     reasons = [k.replace("_", " ") + ("✓" if v else "✗") for k, v in checks.items()]
+    if platitude_rows:
+        reasons.append(f"套话/空话失败行 {platitude_rows} 条✗")
     return score, "; ".join(reasons)
 
 
@@ -437,10 +470,11 @@ def score_dim11_insight(md_path: Path, body: str, skill_type: str = "output"):
     if skill_type == "text":
         # 文本/元技能型：范例=它锻造/服务的下游产物，不存在于自身目录——
         # 判据换成「进化三件套」（test-prompts/results.tsv/git 或备份链，铁律 10）
+        snaps = root / "evidence" / "snapshots"
         trio = [
             (root / "test-prompts.json").exists(),
             (root / "results.tsv").exists(),
-            (root / ".git").exists() or bool(list(root.glob("*.bak.*"))),
+            (root / ".git").exists() or bool(list(root.glob("*.bak.*"))) or (snaps.is_dir() and any(snaps.iterdir())),
         ]
         checks["evolution_trio"] = all(trio)
 
@@ -449,9 +483,9 @@ def score_dim11_insight(md_path: Path, body: str, skill_type: str = "output"):
         script_files = [p for p in scripts_dir.rglob("*") if p.is_file()] if scripts_dir.exists() else []
         has_scripts = bool(script_files)
         has_verify = any(
-            re.search(r"(verify|finalize|build|validate)\.(py|mjs|js|sh)$", p.name)
+            re.search(r"(verify|finalize|build|validate|check|lint)\.(py|mjs|js|sh)$", p.name)
             for p in script_files
-        ) or bool(re.search(r"一键|verify|finalize", body, re.IGNORECASE) and has_scripts)
+        ) or bool(re.search(r"一键|verify|finalize|lint", body, re.IGNORECASE) and has_scripts)
         checks["deterministic_core"] = has_scripts and has_verify
 
         passed = sum(checks.values())

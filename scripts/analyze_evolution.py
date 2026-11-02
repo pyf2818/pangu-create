@@ -125,6 +125,34 @@ def parse_tsv(path: Path):
     return records, None, warnings
 
 
+def normalize_tsv(path: Path) -> dict:
+    """将 results.tsv 规范化为标准 10 列（含表头与 evidence 列），改前自动快照到 evidence/snapshots/。"""
+    records, err, warnings = parse_tsv(path)
+    if err:
+        return {"path": str(path), "changed": False, "error": err, "fixes": []}
+    raw_text = path.read_text(encoding="utf-8-sig")
+    lines_out = ["\t".join(CANONICAL_10)]
+    for r in records:
+        row = []
+        for col in CANONICAL_10:
+            val = str(r.get(col, "") or "").replace("\t", " ").replace("\r", " ").replace("\n", " ").strip()
+            row.append(val if val else "-")
+        lines_out.append("\t".join(row))
+    new_text = "\n".join(lines_out) + "\n"
+    changed = bool(warnings) or (raw_text.replace("\r\n", "\n") != new_text)
+    backup_path = None
+    if changed and warnings:
+        snap_dir = path.parent / "evidence" / "snapshots" / datetime.now().strftime("%Y%m%d-%H%M%S-ledger")
+        snap_dir.mkdir(parents=True, exist_ok=True)
+        backup_file = snap_dir / path.name
+        backup_file.write_text(raw_text, encoding="utf-8")
+        backup_path = str(backup_file)
+        path.write_text(new_text, encoding="utf-8")
+    else:
+        changed = False
+    return {"path": str(path), "changed": changed, "rows": len(records), "fixes": warnings, "backup": backup_path}
+
+
 def analyze(records, months_limit=None, parse_warnings=None):
     """对记录做统计分析；只报告发生率，不从缺失数据推断「健康」。"""
     if not records:
@@ -382,9 +410,17 @@ def main():
     parser.add_argument("tsv_path", help="results.tsv 路径")
     parser.add_argument("--json", action="store_true", help="JSON 输出")
     parser.add_argument("--months", type=int, default=None, help="限制月份数（默认全部）")
+    parser.add_argument("--normalize", action="store_true", help="先将账本规范化为标准 10 列（自动备份到 evidence/snapshots/）")
     args = parser.parse_args()
 
     tsv_path = Path(args.tsv_path)
+    if args.normalize:
+        norm = normalize_tsv(tsv_path)
+        if norm.get("error"):
+            print(f"❌ {norm['error']}", file=sys.stderr)
+            sys.exit(1)
+        if not args.json and norm.get("changed"):
+            print(f"✅ 已规范化账本: {tsv_path}（修复 {len(norm['fixes'])} 项格式警告）")
     records, err, warnings = parse_tsv(tsv_path)
     if err:
         print(f"❌ {err}", file=sys.stderr)

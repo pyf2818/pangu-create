@@ -1,3 +1,5 @@
 .omc/
 __pycache__/
 *.pyc
+evidence/snapshots/
+_ci_installed_skills/
