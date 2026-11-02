@@ -4,6 +4,7 @@
 
 功能:
   1. 将 pangu-create 本身（或通过 --skill / --fleet 指定的盘古子技能群）安装到主流 Agent 运行时的 skills 目录：
+     - Antigravity: ~/.gemini/config/skills/
      - Claude Code: ~/.claude/skills/
      - 通用 Agent:  ~/.agents/skills/
      - Cursor:      ~/.cursor/skills/
@@ -42,6 +43,7 @@ import subprocess
 import registry as REG  # noqa: E402
 
 RUNTIME_TARGETS = {
+    "antigravity": Path(".gemini") / "config" / "skills",
     "claude": Path(".claude") / "skills",
     "agents": Path(".agents") / "skills",
     "cursor": Path(".cursor") / "skills",
@@ -127,7 +129,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="盘古开天 一键跨平台安装与技能群分发器")
     parser.add_argument("--skill", default=str(PANGU_ROOT), help="要安装的 skill 目录（默认 pangu-create 自身）")
     parser.add_argument("--fleet", default=None, help="批量安装：指定工作区根目录，安装其中全部已登记的盘古技能")
-    parser.add_argument("--target", choices=["auto", "claude", "agents", "cursor", "trae", "codex", "all"],
+    parser.add_argument("--target", choices=["auto", "antigravity", "claude", "agents", "cursor", "trae", "codex", "all"],
                         default="auto", help="目标运行时类型（默认 auto 自动探测）")
     parser.add_argument("--dest", default=None, help="自定义安装目标父目录（覆盖 --target）")
     parser.add_argument("--check", action="store_true", help="安装后对每个副本运行静态 11 项与盘古印记自检")
