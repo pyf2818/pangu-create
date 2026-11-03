@@ -76,3 +76,21 @@
 **下游 skill 索引**：svg-infographic（L1 · lineage: pgn-202611030907-9e10）
 **辨识度测试**：遮住署名，行家一眼能认出「媲美 Stripe / Linear 官方白皮书的现代高保真矢量信息图」而非「Mermaid 死板线框」或「大模型随手乱画的土味 SVG」
 **更新历史**：2026-11-03 首次锻造出厂注册（v1.5.0 技能群管理）
+
+## Canvas与3D视频渲染 / canvas-threejs-video（首锻造 2026-11-03 | 最近回填 2026-11-03 | 已锻造 1 件 | 深度 L1）
+
+**North Star 参照物**：Apple 产品发布会 3D 爆炸图运镜转场；Bruno Simon 交互式 3D 动画离线渲染；Linear 首页 60FPS 丝滑几何循环动效
+**参数基准**：
+1. 缓冲区保护：`preserveDrawingBuffer: true`（必须开启，防止后缓冲区清空致黑帧）。
+2. 虚拟时钟离散切片：步长精确锁定 `1.0 / fps`（如 60FPS 每步 16.666ms），严禁直接调用物理时钟 `Date.now()`。
+3. 电影级色彩管理：`ACESFilmicToneMapping`，exposure 曝光值锁定 `1.15 ± 0.05`。
+4. 透明通道防暗边：WebGL 必须开启 `alpha: true, premultipliedAlpha: false`；VP9 强制 `-pix_fmt yuva420p -auto-alt-ref 0`。
+5. 推流零磁盘写盘：`image2pipe` 内存流直推 ffmpeg `stdin`，单帧推流后立即释放引用。
+证据：`skills/canvas-threejs-video/evidence/verification.json#video-behavior` 与 `references/art-direction.md`。
+**独有手法**：通用虚拟时钟钩子（VirtualClockHook），自动劫持 `requestAnimationFrame`、`Date.now()`、`performance.now()`，解耦宿主瞬时算力与渲染帧率；暴露 `window.__seekFrame(frameIndex, fps)`。
+**反模式**：在动画循环中使用 `captureStream` 实时录屏（必出掉帧与可变帧率撕裂）；合帧前将数万张未压缩 PNG 写入硬盘（磁盘 I/O 磨损与堵塞）；忽略 `preserveDrawingBuffer` 导致录出纯黑/空白帧；导出透明视频使用常规 YUV420P 导致暗色黑边。
+**A 层专属调研维度**：离线时钟解耦机制（Virtual Clock / CCapture 劫持原理）、WebGL 缓冲区生命周期（Drawing Buffer Clearing）、视频流式内存管道（Stdin Pipe / WebCodecs）、Alpha 预乘与 VP9 色彩空间。
+**典型剧本**：playbooks.md P12（3D 与多媒体产出型）+ 离线逐帧推进与流式推流。
+**下游 skill 索引**：`canvas-threejs-video`（`pgn-202611031244-fb9e`，L1）。
+**辨识度测试**：遮住代码来源，运行视频生成逻辑，无论在高性能台式机还是低配无头容器中，输出的 MP4/WebM 视频均实现逐帧完美定格、零丢帧、零黑边、60.000 CFR 绝对恒定帧率。
+**更新历史**：2026-11-03 首次锻造出厂并登记工艺参数（依据：F3.6 验收通过与 results.tsv 首轮精炼）。
